@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import requests
+import io
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
@@ -10,18 +12,25 @@ st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 # 회원님의 구글 스프레드시트 고유 ID 정의
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
 
-# 가장 안전한 표준 엑셀 다운로드 주소 방식으로 설정하여 네트워크 오류 차단
+# 안전한 다운로드를 위한 표준 엑셀 다운로드 주소
 URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
 
 @st.cache_data(ttl=5)
 def load_data():
     try:
-        # 가상 경로 대신 공식 엑셀 주소 통로를 활용해 각각의 시트를 직접 명확하게 가져옵니다.
-        df_sched = pd.read_excel(URL_BASE, sheet_name="Project_Schedule", engine='openpyxl')
-        df_check = pd.read_excel(URL_BASE, sheet_name="Checklist", engine='openpyxl')
-        return df_sched, df_check
+        # urlopen 대신 가장 안정적인 requests 라이브러리를 사용해 데이터를 바이트 형태로 먼저 가져옵니다.
+        response = requests.get(URL_BASE, timeout=10)
+        if response.status_code == 200:
+            # 다운로드한 데이터를 파일 형태로 메모리에 올려 openpyxl로 읽어들입니다.
+            excel_file = io.BytesIO(response.content)
+            df_sched = pd.read_excel(excel_file, sheet_name="Project_Schedule", engine='openpyxl')
+            df_check = pd.read_excel(excel_file, sheet_name="Checklist", engine='openpyxl')
+            return df_sched, df_check
+        else:
+            st.error(f"구글 서버 응답 실패 (코드: {response.status_code})")
+            return None, None
     except Exception as e:
-        st.error(f"구글 스프레드시트 실시간 통신 실패: {e}")
+        st.error(f"구글 스프레드시트 실시간 통신 실패 보완 처리 중: {e}")
         return None, None
 
 df_sched, df_check = load_data()
