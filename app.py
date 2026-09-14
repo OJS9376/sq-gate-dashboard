@@ -7,10 +7,8 @@ st.set_page_config(page_title="sQ-Gate 품질활동 대시보드", layout="cente
 
 st.title("sQ-Gate 일정 및 품질활동 관리 시스템")
 
-# 구글 스프레드시트 연동 주소 입력 (3단계에서 바꾼 주소를 여기에 넣으세요)
+# 회원님의 구글 스프레드시트 연동 주소
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc/export?format=xlsx"
-
-# 팀원들이 접속할 때마다 구글 시트에서 새로운 데이터를 실시간으로 가져오는 함수 (캐시 10초 유지)
 @st.cache_data(ttl=10)
 def load_google_sheet(url):
     try:
@@ -24,22 +22,28 @@ def load_google_sheet(url):
 df_sched, df_check = load_google_sheet(GOOGLE_SHEET_URL)
 
 if df_sched is not None and df_check is not None:
-    # 컬럼 공백 제거 및 병합셀 공백 보정 (ffill)
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
+    
+    # 병합셀 및 공백 보정 (Project, Gate, Category까지 모두 자동 채우기)
     df_check['Project'] = df_check['Project'].ffill()
     df_check['Gate'] = df_check['Gate'].ffill()
+    if 'Category' in df_check.columns:
+        df_check['Category'] = df_check['Category'].ffill()
 
-    # 프로젝트 선택 필터
     project_list = df_sched['Project'].dropna().unique()
+    
+    if len(project_list) == 0:
+        st.warning("선택할 수 있는 프로젝트가 없습니다.")
+        st.stop()
+        
     selected_project = st.selectbox("프로젝트 선택", project_list)
     
     p_rows = df_sched[df_sched['Project'] == selected_project]
-    p_data = p_rows.bfill().iloc[0] if not p_rows.empty else None
+    p_data = p_rows.bfill().iloc if not p_rows.empty else None
     p_check = df_check[df_check['Project'] == selected_project]
 
     if p_data is not None:
-        # 프로젝트별 체크리스트 진척도 자동 계산 및 타임라인 데이터 구축
         timeline_data = []
         today = pd.Timestamp.now().normalize()
 
@@ -55,7 +59,6 @@ if df_sched is not None and df_check is not None:
                 target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
                 dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
                 
-                # 해당 Gate의 체크리스트 항목 추출 및 진척도 계산
                 gate_check = p_check[p_check['Gate'].str.strip() == q_name]
                 total_tasks = len(gate_check)
                 progress = 0
@@ -65,36 +68,35 @@ if df_sched is not None and df_check is not None:
                     progress = int((completed_tasks / total_tasks) * 100)
                 
                 d_day = (dead_dt - today).days
-                d_day_str = f"D-{d_day}" if d_day > 0 else (f"D+{-d_day}" if d_day < 0 else "D-Day")
+                if d_day > 0:
+                    d_day_str = f"D-{d_day} (마감 전)"
+                elif d_day < 0:
+                    d_day_str = f"D+{-d_day} (마감 지연)"
+                else:
+                    d_day_str = "D-Day (오늘마감)"
                 
                 timeline_data.append({
                     "Gate": q_name,
                     "Start": target_dt,
                     "End": dead_dt,
                     "Progress": progress,
-                    "D-Day": d_day_str
+                    "D-Day": d_day_str,
+                    "Raw_D_Day": d_day
                 })
 
         if timeline_data:
             rdf = pd.DataFrame(timeline_data)
 
-            # 상단 요약 정보
             owner_info = p_data['Owner'] if 'Owner' in p_data and pd.notnull(p_data['Owner']) else "미지정"
             st.info(f"품질담당자: {owner_info}")
             st.metric("종합 품질활동 진척률", f"{int(rdf['Progress'].mean())}%")
             st.markdown("---")
             
-            # 중앙 타임라인 바 차트 출력
             st.subheader("Gate별 완료율 및 마감 현황")
             fig = px.bar(
-                rdf, 
-                x="Progress", 
-                y="Gate", 
-                text=rdf.apply(lambda r: f" {r['D-Day']} ({r['Progress']}% 완료)", axis=1),
-                orientation='h',
-                color="Progress",
-                color_continuous_scale="YlGnBu",
-                range_x=[0, 100]
+                rdf, x="Progress", y="Gate", 
+                text=rdf['D-Day'],
+                orientation='h', color="Progress", color_continuous_scale="YlGnBu", range_x=[0, 100]
             )
             fig.update_layout(showlegend=False, coloraxis_showscale=False, height=300, margin=dict(l=10, r=10, t=10, b=10))
             fig.update_yaxes(autorange="reversed")
@@ -102,23 +104,36 @@ if df_sched is not None and df_check is not None:
 
             st.markdown("---")
 
-            # 하단 영역 1: Gate별 마감 일정표
             st.subheader("Gate별 마감 일정")
-            display_df = rdf[["Gate", "End", "D-Day", "Progress"]].copy()
+            display_df = rdf[["Gate", "End", "D-Day", "Progress", "Raw_D_Day"]].copy()
             display_df['End'] = display_df['End'].dt.strftime('%m-%d')
-            display_df.columns = ["Gate", "마감일", "남은일수", "완료율(%)"]
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            display_df.columns = ["Gate", "마감일", "남은일수", "완료율(%)", "Raw_D_Day"]
+
+            def highlight_delay(row):
+                styles = [''] * len(row)
+                if row['Raw_D_Day'] < 0 and row['완료율(%)'] < 100:
+                    styles = ['background-color: #f8d7da; color: #721c24; font-weight: bold;'] * len(row)
+                return styles
+
+            st.dataframe(
+                display_df.style.apply(highlight_delay, axis=1), 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={"Raw_D_Day": None}
+            )
 
             st.markdown("---")
 
-            # 하단 영역 2: 세부 활동 점검 (체크리스트)
+            # 하단 영역 2: 세부 활동 점검 (상위 카테고리 열 추가 반영)
             st.subheader("Gate별 세부 활동 상황")
             selected_gate = st.selectbox("활동을 확인할 품질 게이트 선택", rdf['Gate'].unique())
             active_check = p_check[p_check['Gate'].str.strip() == selected_gate]
             
             if len(active_check) > 0:
-                show_check = active_check[["Activity", "Status"]].copy()
-                show_check.columns = ["수행 활동", "상태"]
+                # 데이터가 비어있는 빈 칸(결측치) 처리 및 컬럼 매칭
+                show_check = active_check[["Category", "Activity", "Status"]].copy()
+                show_check['Status'] = show_check['Status'].fillna("대기")
+                show_check.columns = ["상위 카테고리", "수행 활동", "상태"]
                 
                 def color_status(val):
                     if not isinstance(val, str):
