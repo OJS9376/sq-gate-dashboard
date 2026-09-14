@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from streamlit_gsheets import GSheetsConnection
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 품질활동 대시보드", layout="centered")
@@ -10,18 +9,18 @@ st.title("sQ-Gate 일정 및 품질활동 관리 시스템")
 
 # 구글 스프레드시트 공식 가상통로 연결 생성
 try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
+    conn = st.connection("gsheets")
 except Exception as e:
-    st.error("구글 시트 전용 커넥터 설정이 필요합니다. 아래 가이드를 확인하세요.")
+    st.error("구글 시트 전용 커넥터 설정에 실패했습니다.")
     st.stop()
 
-# 데이터 실시간 로드 기능 (보안 연결 주소 자동 적용)
+# 데이터 실시간 로드 기능 (read_csv 오류 원천 차단형 명령어 수정)
 @st.cache_data(ttl=5)
 def load_data():
     try:
-        # 공식 연결 통로를 통해 각각의 시트를 안전하게 긁어옴
-        df_sched = conn.read(sheet_name="Project_Schedule", ttl="5s")
-        df_check = conn.read(sheet_name="Checklist", ttl="5s")
+        # sheet_name 대신 커넥터 전용 표준 옵션(worksheet)을 사용해 각각의 시트를 안전하게 가져옵니다.
+        df_sched = conn.read(worksheet="Project_Schedule", ttl="5s")
+        df_check = conn.read(worksheet="Checklist", ttl="5s")
         return df_sched, df_check
     except Exception as e:
         st.error(f"구글 스프레드시트 로드 실패: {e}")
@@ -130,7 +129,6 @@ if df_sched is not None and df_check is not None:
             st.subheader("Gate별 세부 활동 상황 (마우스 클릭으로 편집 가능)")
             selected_gate = st.selectbox("활동을 확인할 품질 게이트 선택", rdf['Gate'].unique())
             
-            # 전체 데이터셋 내에서 현재 프로젝트 및 특정 Gate 인덱스 필터링 추출
             active_mask = (df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == selected_gate)
             active_df = df_check[active_mask]
             
@@ -150,11 +148,10 @@ if df_sched is not None and df_check is not None:
                     use_container_width=True
                 )
                 
-                # 저장 버튼 클릭 시 가상통로를 통해 원본 구글 시트에 즉시 동기화 백라이팅
                 if st.button("변경된 진행 상태 구글 스프레드시트에 최종 저장하기"):
                     df_check.loc[active_mask, "Status"] = edited_df["상태"].values
                     try:
-                        conn.update(spreadsheet=GOOGLE_SHEET_URL, data=df_check, sheet_name="Checklist")
+                        conn.update(data=df_check, worksheet="Checklist")
                         st.success("완료: 구글 스프레드시트에 실시간 저장이 완료되었습니다.")
                         st.cache_data.clear() # 캐시 강제 청소로 즉시 반영
                         st.rerun()
@@ -162,3 +159,7 @@ if df_sched is not None and df_check is not None:
                         st.error(f"실시간 업데이트 권한 설정을 확인하세요: {ex}")
             else:
                 st.info("해당 Gate에는 등록된 품질 활동 체크리스트가 없습니다.")
+        else:
+            st.warning("품질 게이트 일정 데이터가 없습니다.")
+    else:
+        st.warning("선택된 프로젝트의 데이터가 올바르지 않습니다.")
