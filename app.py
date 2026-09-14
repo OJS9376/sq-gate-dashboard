@@ -8,11 +8,7 @@ import io
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
 
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
-
-# 회원님의 구글 스프레드시트 고유 ID 정의
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-
-# 안전한 다운로드를 위한 표준 엑셀 다운로드 주소
 URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
 
 @st.cache_data(ttl=5)
