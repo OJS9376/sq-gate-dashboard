@@ -9,6 +9,7 @@ st.title("sQ-Gate 일정 및 품질활동 관리 시스템")
 
 # 회원님의 구글 스프레드시트 연동 주소
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc/export?format=xlsx"
+
 @st.cache_data(ttl=10)
 def load_google_sheet(url):
     try:
@@ -40,10 +41,16 @@ if df_sched is not None and df_check is not None:
     selected_project = st.selectbox("프로젝트 선택", project_list)
     
     p_rows = df_sched[df_sched['Project'] == selected_project]
-    p_data = p_rows.bfill().iloc if not p_rows.empty else None
     p_check = df_check[df_check['Project'] == selected_project]
 
-    if p_data is not None:
+    if not p_rows.empty:
+        # 안전한 담당자 정보 추출 (오류 해결 핵심 구간)
+        owner_info = "미지정"
+        if 'Owner' in p_rows.columns:
+            valid_owners = p_rows['Owner'].dropna()
+            if not valid_owners.empty:
+                owner_info = str(valid_owners.iloc[0])
+
         timeline_data = []
         today = pd.Timestamp.now().normalize()
 
@@ -52,8 +59,9 @@ if df_sched is not None and df_check is not None:
             t_col = f"Q{i}_Target"
             d_col = f"Q{i}_Dead"
 
-            target_val = p_rows[t_col].dropna()
-            dead_val = p_rows[d_col].dropna()
+            # 해당 열이 존재하는지 안전하게 체크 후 첫 번째 값 가져오기
+            target_val = p_rows[t_col].dropna() if t_col in p_rows.columns else pd.Series(dtype='object')
+            dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
                 target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
@@ -87,7 +95,6 @@ if df_sched is not None and df_check is not None:
         if timeline_data:
             rdf = pd.DataFrame(timeline_data)
 
-            owner_info = p_data['Owner'] if 'Owner' in p_data and pd.notnull(p_data['Owner']) else "미지정"
             st.info(f"품질담당자: {owner_info}")
             st.metric("종합 품질활동 진척률", f"{int(rdf['Progress'].mean())}%")
             st.markdown("---")
@@ -124,13 +131,12 @@ if df_sched is not None and df_check is not None:
 
             st.markdown("---")
 
-            # 하단 영역 2: 세부 활동 점검 (상위 카테고리 열 추가 반영)
+            # 하단 영역 2: 세부 활동 점검 (상위 카테고리 포함)
             st.subheader("Gate별 세부 활동 상황")
             selected_gate = st.selectbox("활동을 확인할 품질 게이트 선택", rdf['Gate'].unique())
             active_check = p_check[p_check['Gate'].str.strip() == selected_gate]
             
             if len(active_check) > 0:
-                # 데이터가 비어있는 빈 칸(결측치) 처리 및 컬럼 매칭
                 show_check = active_check[["Category", "Activity", "Status"]].copy()
                 show_check['Status'] = show_check['Status'].fillna("대기")
                 show_check.columns = ["상위 카테고리", "수행 활동", "상태"]
