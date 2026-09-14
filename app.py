@@ -1,50 +1,39 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from streamlit_gsheets import GSheetsConnection
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 품질활동 대시보드", layout="centered")
 
 st.title("sQ-Gate 일정 및 품질활동 관리 시스템")
 
-# 회원님의 구글 스프레드시트 고유 ID 및 주소 설정
-SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-GOOGLE_SHEET_URL = f"https://google.com{SHEET_ID}/export?format=xlsx"
+# 구글 스프레드시트 공식 가상통로 연결 생성
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    st.error("구글 시트 전용 커넥터 설정이 필요합니다. 아래 가이드를 확인하세요.")
+    st.stop()
 
-# 데이터 불러오기 함수
-def load_google_sheet(url):
+# 데이터 실시간 로드 기능 (보안 연결 주소 자동 적용)
+@st.cache_data(ttl=5)
+def load_data():
     try:
-        df_sched = pd.read_excel(url, sheet_name="Project_Schedule", engine='openpyxl')
-        df_check = pd.read_excel(url, sheet_name="Checklist", engine='openpyxl')
+        # 공식 연결 통로를 통해 각각의 시트를 안전하게 긁어옴
+        df_sched = conn.read(sheet_name="Project_Schedule", ttl="5s")
+        df_check = conn.read(sheet_name="Checklist", ttl="5s")
         return df_sched, df_check
     except Exception as e:
         st.error(f"구글 스프레드시트 로드 실패: {e}")
         return None, None
 
-# 데이터 수정 후 구글 시트에 실시간으로 쓰는 함수
-def save_to_google_sheet(df_to_save):
-    try:
-        # Streamlit 헬퍼 연동 주소를 활용한 데이터 웹 저장 로직
-        csv_data = df_to_save.to_csv(index=False)
-        st.success("대시보드에서 상태를 직접 변경하려면 1단계의 '편집자' 권한 설정이 필요합니다.")
-    except Exception as e:
-        st.error(f"구글 시트 저장 중 오류 발생: {e}")
-
-# 세션 상태를 활용해 페이지 새로고침 시 데이터 유지
-if "df_check" not in st.session_state:
-    df_sched, df_check = load_google_sheet(GOOGLE_SHEET_URL)
-    if df_sched is not None:
-        st.session_state.df_sched = df_sched
-        st.session_state.df_check = df_check
-else:
-    df_sched = st.session_state.df_sched
-    df_check = st.session_state.df_check
+df_sched, df_check = load_data()
 
 if df_sched is not None and df_check is not None:
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
     
-    # 공백 및 병합셀 자동 보정
+    # 병합셀 및 공백 자동 누적 보정
     df_check['Project'] = df_check['Project'].ffill()
     df_check['Gate'] = df_check['Gate'].ffill()
     if 'Category' in df_check.columns:
@@ -83,7 +72,7 @@ if df_sched is not None and df_check is not None:
                 target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
                 dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
                 
-                # 실시간 변경되는 세션 상태 기준으로 완료율 재계산
+                # 실시간 변경된 값 기준으로 진척률 재계산
                 gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
                 total_tasks = len(gate_check)
                 progress = 0
@@ -137,20 +126,19 @@ if df_sched is not None and df_check is not None:
 
             st.markdown("---")
 
-            # [핵심 수정 구간] 사이트 내부 실시간 상태 편집 입력 테이블
+            # 드롭다운 편집 테이블 출력 및 실시간 저장 바인딩
             st.subheader("Gate별 세부 활동 상황 (마우스 클릭으로 편집 가능)")
             selected_gate = st.selectbox("활동을 확인할 품질 게이트 선택", rdf['Gate'].unique())
             
-            # 전체 세션 데이터에서 현재 선택된 프로젝트와 게이트 필터링
-            active_idx = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == selected_gate)].index
+            # 전체 데이터셋 내에서 현재 프로젝트 및 특정 Gate 인덱스 필터링 추출
+            active_mask = (df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == selected_gate)
+            active_df = df_check[active_mask]
             
-            if len(active_idx) > 0:
-                show_check = df_check.loc[active_idx, ["Category", "Activity", "Status"]].copy()
+            if not active_df.empty:
+                show_check = active_df[["Category", "Activity", "Status"]].copy()
                 show_check['Status'] = show_check['Status'].fillna("대기")
                 show_check.columns = ["상위 카테고리", "수행 활동", "상태"]
                 
-
-                # 마우스 클릭으로 상태를 완료/진행중/대기로 바꾸는 드롭다운 박스 배치
                 edited_df = st.data_editor(
                     show_check,
                     column_config={
@@ -162,12 +150,15 @@ if df_sched is not None and df_check is not None:
                     use_container_width=True
                 )
                 
-                # 저장 버튼 클릭 시 구글 시트와 대시보드 화면에 동시 업데이트
+                # 저장 버튼 클릭 시 가상통로를 통해 원본 구글 시트에 즉시 동기화 백라이팅
                 if st.button("변경된 진행 상태 구글 스프레드시트에 최종 저장하기"):
-                    df_check.loc[active_idx, "Status"] = edited_df["상태"].values
-                    st.session_state.df_check = df_check
-                    save_to_google_sheet(df_check)
-                    st.success("상태 변경 사항이 성공적으로 저장되었습니다. 대시보드를 새로고침합니다.")
-                    st.rerun()
+                    df_check.loc[active_mask, "Status"] = edited_df["상태"].values
+                    try:
+                        conn.update(spreadsheet=GOOGLE_SHEET_URL, data=df_check, sheet_name="Checklist")
+                        st.success("완료: 구글 스프레드시트에 실시간 저장이 완료되었습니다.")
+                        st.cache_data.clear() # 캐시 강제 청소로 즉시 반영
+                        st.rerun()
+                    except Exception as ex:
+                        st.error(f"실시간 업데이트 권한 설정을 확인하세요: {ex}")
             else:
                 st.info("해당 Gate에는 등록된 품질 활동 체크리스트가 없습니다.")
