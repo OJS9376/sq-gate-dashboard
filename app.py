@@ -2,22 +2,23 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 대시보드 기본 설정 (여러 프로젝트를 한눈에 넓게 보기 위해 wide 레이아웃으로 변경)
+# 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
 
-st.title("📊 sQ-Gate 통합 일정 및 품질활동 관리 시스템")
+st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 
 # 회원님의 구글 스프레드시트 고유 ID 정의
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
 
-URL_SCHED = f"https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Project_Schedule"
-URL_CHECK = f"https://google.com{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Checklist"
+# 가장 안전한 표준 엑셀 다운로드 주소 방식으로 설정하여 네트워크 오류 차단
+URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
 
 @st.cache_data(ttl=5)
 def load_data():
     try:
-        df_sched = pd.read_csv(URL_SCHED)
-        df_check = pd.read_csv(URL_CHECK)
+        # 가상 경로 대신 공식 엑셀 주소 통로를 활용해 각각의 시트를 직접 명확하게 가져옵니다.
+        df_sched = pd.read_excel(URL_BASE, sheet_name="Project_Schedule", engine='openpyxl')
+        df_check = pd.read_excel(URL_BASE, sheet_name="Checklist", engine='openpyxl')
         return df_sched, df_check
     except Exception as e:
         st.error(f"구글 스프레드시트 실시간 통신 실패: {e}")
@@ -42,15 +43,14 @@ if df_sched is not None and df_check is not None:
         df_check['Category'] = df_check['Category'].ffill()
 
     # ------------------------------------------------------------------
-    # [새로 추가된 핵심 기능] 📅 전 프로젝트 통합 달력형 타임라인 보기
+    # 전 프로젝트 통합 달력형 타임라인 보기
     # ------------------------------------------------------------------
-    st.markdown("### 📅 전 프로젝트 통합 마일스톤 달력")
+    st.markdown("### 전 프로젝트 통합 마일스톤 달력")
     st.caption("모든 프로젝트의 Gate별 마감 일정을 타임라인 달력 형태로 한눈에 비교합니다.")
     
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
     
-    # 구글 시트에 있는 모든 프로젝트를 순회하며 달력 데이터 구축
     for idx, row in df_sched.dropna(subset=['Project']).iterrows():
         p_name = row['Project']
         for i in range(1, 9):
@@ -63,7 +63,6 @@ if df_sched is not None and df_check is not None:
                         start_dt = pd.to_datetime(row[t_col])
                         end_dt = pd.to_datetime(row[d_col])
                         
-                        # 각 게이트별 완료율 계산
                         gate_check = df_check[(df_check['Project'] == p_name) & (df_check['Gate'].str.strip() == f"Q{i}")]
                         total_tasks = len(gate_check)
                         progress = 0
@@ -85,7 +84,6 @@ if df_sched is not None and df_check is not None:
     if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
-        # Plotly Timeline(간트 차트 스타일 달력) 시각화
         fig_all = px.timeline(
             df_all_timeline,
             x_start="심의예정일",
@@ -97,7 +95,6 @@ if df_sched is not None and df_check is not None:
             title="프로젝트별 품질 활동 일정 전체 비교",
             color_discrete_sequence=px.colors.qualitative.Safe
         )
-        # 오늘 날짜를 기준으로 달력 한가운데에 빨간색 기준 점선 그리기
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
@@ -108,9 +105,9 @@ if df_sched is not None and df_check is not None:
     st.markdown("---")
 
     # ------------------------------------------------------------------
-    # 🔍 개별 프로젝트 세부 점검 영역 (기존 화면 유지 및 가로 배치 최적화)
+    # 개별 프로젝트 세부 점검 영역
     # ------------------------------------------------------------------
-    st.markdown("### 🔍 프로젝트별 세부 품질활동 점검")
+    st.markdown("### 프로젝트별 세부 품질활동 점검")
     
     project_list = df_sched['Project'].dropna().unique()
     selected_project = st.selectbox("조회 및 편집할 프로젝트 선택", project_list)
@@ -162,18 +159,16 @@ if df_sched is not None and df_check is not None:
         if timeline_data:
             rdf = pd.DataFrame(timeline_data)
 
-            # 좌우 공간 배치를 활용해 가독성 대폭 향상
             col_info1, col_info2 = st.columns(2)
             with col_info1:
                 st.info(f"품질담당자: {owner_info}")
             with col_info2:
                 st.metric("선택 프로젝트 종합 진척률", f"{int(rdf['Progress'].mean())}%")
             
-            # 하단 테이블 영역 분할 배치
-            col_left, col_right = st.columns([4, 6])
+            col_left, col_right = st.columns(2)
             
             with col_left:
-                st.markdown("##### 📅 Gate별 마감 일정")
+                st.markdown("##### Gate별 마감 일정")
                 display_df = rdf[["Gate", "End", "D-Day", "Progress", "Raw_D_Day"]].copy()
                 display_df['End'] = display_df['End'].dt.strftime('%m-%d')
                 display_df.columns = ["Gate", "마감일", "남은일수", "완료율(%)", "Raw_D_Day"]
@@ -187,7 +182,7 @@ if df_sched is not None and df_check is not None:
                 st.dataframe(display_df.style.apply(highlight_delay, axis=1), use_container_width=True, hide_index=True, column_config={"Raw_D_Day": None})
 
             with col_right:
-                st.markdown("##### 📋 세부 활동 점검 및 상태 변경")
+                st.markdown("##### 세부 활동 점검 및 상태 변경")
                 selected_gate = st.selectbox("조회할 Gate 선택", rdf['Gate'].unique())
                 
                 active_mask = (df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == selected_gate)
