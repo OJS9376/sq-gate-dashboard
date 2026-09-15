@@ -343,7 +343,8 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":"))
+                # [교정 완료] 리스트 슬라이싱 [0]을 붙여 형변환 TypeError 오류를 해결했습니다.
+                target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 
                 if is_done:
