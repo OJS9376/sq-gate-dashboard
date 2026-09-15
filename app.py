@@ -54,25 +54,23 @@ if df_sched is not None and df_check is not None:
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
         
-        # 텍스트가 비어있지 않은 빈 행 5개를 데이터 에디터 형태로 깔끔하게 구현
         todo_data = pd.DataFrame([{"선택": False, "할 일 내용": ""} for _ in range(5)])
         
         st.data_editor(
             todo_data,
             column_config={
-                "선택": st.column_config.CheckboxColumn(label="", default=False),
+                # [수정 포인트 1] 체크박스 열(선택)의 너비를 최소(required_width) 혹은 "small" 형태로 고정하여 1/5로 축소
+                "선택": st.column_config.CheckboxColumn(label="", default=False, width="small"),
                 "할 일 내용": st.column_config.TextColumn(label="오늘의 주요 품질활동 메모", width="large")
             },
             hide_index=True,
             use_container_width=True,
-            key="top_todo_list"
+            key="top_todo_list_fixed"
         )
 
     with col_cal:
-        # [오류 해결] today 변수를 이 블록 안에서 명시적으로 한 번 더 선언해 줍니다.
         today = pd.Timestamp.now().normalize()
         current_year = today.year
-        current_month = today.month
         
         st.markdown(
             f"""
@@ -86,29 +84,28 @@ if df_sched is not None and df_check is not None:
                         <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
                     </tr>
                     <tr style="color: #444;">
-                        <td></td><td></td><td style="color:#AAA;">1</td><td style="color:#AAA;">2</td><td style="color:#AAA;">3</td><td style="color:#AAA;">4</td><td style="color: #1E88E5;">5</td>
+                        <td></td><td></td><td style="color:#AAA; padding: 5px;">1</td><td style="color:#AAA; padding: 5px;">2</td><td style="color:#AAA; padding: 5px;">3</td><td style="color:#AAA; padding: 5px;">4</td><td style="color: #1E88E5; padding: 5px;">5</td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935;">6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td style="color: #1E88E5;">12</td>
+                        <td style="color: #E53935; padding: 5px;">6</td><td style="padding: 5px;">7</td><td style="padding: 5px;">8</td><td style="padding: 5px;">9</td><td style="padding: 5px;">10</td><td style="padding: 5px;">11</td><td style="color: #1E88E5; padding: 5px;">12</td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935;">13</td><td>14</td>
-                        <!-- 오늘 날짜인 15일에 강조 원형 테두리 적용 -->
-                        <td style="background-color: #E8F5E9; border: 2px solid #2E7D32; border-radius: 50%; font-weight: bold; color: #2E7D32;">15</td>
-                        <td>16</td><td>17</td><td>18</td><td style="color: #1E88E5;">19</td>
+                        <td style="color: #E53935; padding: 5px;">13</td><td style="padding: 5px;">14</td>
+                        <!-- [수정 포인트 2] 원형 지우고 부드러운 직사각형(배경색 채우기) 형태로 변경 -->
+                        <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold; color: #2E7D32; padding: 5px;">15</td>
+                        <td style="padding: 5px;">16</td><td style="padding: 5px;">17</td><td style="padding: 5px;">18</td><td style="color: #1E88E5; padding: 5px;">19</td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935;">20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td><td style="color: #1E88E5;">26</td>
+                        <td style="color: #E53935; padding: 5px;">20</td><td style="padding: 5px;">21</td><td style="padding: 5px;">22</td><td style="padding: 5px;">23</td><td style="padding: 5px;">24</td><td style="padding: 5px;">25</td><td style="color: #1E88E5; padding: 5px;">26</td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935;">27</td><td>28</td><td>29</td><td>30</td><td></td><td></td><td></td>
+                        <td style="color: #E53935; padding: 5px;">27</td><td style="padding: 5px;">28</td><td style="padding: 5px;">29</td><td style="padding: 5px;">30</td><td></td><td></td><td></td>
                     </tr>
                 </table>
             </div>
             """, 
             unsafe_allow_html=True
         )
-
     st.markdown("<br>", unsafe_allow_html=True)
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
