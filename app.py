@@ -162,13 +162,9 @@ if df_sched is not None and df_check is not None:
                 
                 hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
                 
+                # 가짜 더미 데이터를 완전히 삭제하고 빈 저장소로 초기화 상태 유지
                 if f"stored_events_{selected_day}" not in st.session_state:
-                    if selected_day == 15:
-                        st.session_state[f"stored_events_{selected_day}"] = {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"}
-                    elif selected_day == 16:
-                        st.session_state[f"stored_events_{selected_day}"] = {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"}
-                    else:
-                        st.session_state[f"stored_events_{selected_day}"] = {}
+                    st.session_state[f"stored_events_{selected_day}"] = {}
                 
                 updated_events = {}
                 for h_str in hours_setup:
