@@ -55,22 +55,42 @@ if df_sched is not None and df_check is not None:
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
         
-        # 입력창이 화면 밖으로 절대 나가지 않는 모바일 전용 UI 구성
-        # 5개의 행을 가로로 정렬된 체크박스와 입력창으로 배치합니다.
+        # [스타일 보정] 체크박스와 입력 영역의 여백을 완전히 없애고 밀착시키는 CSS
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stHorizontalBlock"] {
+                align-items: center !important;
+                gap: 0px !important;
+            }
+            div[data-testid="column"] {
+                padding: 0px !important;
+                margin: 0px !important;
+            }
+            /* 입력창 하단의 불필요한 공백 제거 */
+            .stTextInput {
+                margin-bottom: -10px;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # 5개의 행을 강제로 한 줄 밀착 레이아웃으로 배치
         for idx in range(5):
-            # 체크박스와 텍스트 입력창의 너비 비율을 밀착 정렬
-            t_col1, t_col2 = st.columns([0.15, 0.85])
+            # 두 열 사이의 너비를 극단적으로 밀착 (체크박스 영역 8%, 입력창 영역 92%)
+            t_col1, t_col2 = st.columns([0.08, 0.92])
             
             with t_col1:
-                # 체크박스를 왼쪽 끝에 배치
-                st.checkbox("", key=f"todo_check_{idx}", label_visibility="collapsed")
+                # 체크박스 배치 (레이블 숨김)
+                st.checkbox("", key=f"todo_check_fixed_{idx}", label_visibility="collapsed")
                 
             with t_col2:
-                # 일반 텍스트 입력창을 배치하여 타이핑 시 절대 글자가 잘리지 않도록 구현
+                # 입력창 배치 (레이블 숨김)
                 st.text_input(
                     "", 
                     placeholder="오늘의 주요 품질활동 메모" if idx == 0 else "",
-                    key=f"todo_text_{idx}",
+                    key=f"todo_text_fixed_{idx}",
                     label_visibility="collapsed"
                 )
 
