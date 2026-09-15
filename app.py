@@ -376,7 +376,7 @@ if df_sched is not None and df_check is not None:
         if 'Owner' in p_rows.columns:
             valid_owners = p_rows['Owner'].dropna()
             if not valid_owners.empty:
-                owner_info = str(valid_owners.iloc)
+                owner_info = str(valid_owners.iloc[0])
 
         timeline_data = []
 
@@ -389,8 +389,9 @@ if df_sched is not None and df_check is not None:
             dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
-                target_dt = pd.to_datetime(target_val.iloc).replace(tzinfo=None)
-                dead_dt = pd.to_datetime(dead_val.iloc).replace(tzinfo=None)
+                # [오류 해결] iloc 뒤에 [0]을 정확히 명시하여 첫 번째 원소 값을 정상적으로 가져옵니다.
+                target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
+                dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
                 
                 gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
                 total_tasks = len(gate_check)
