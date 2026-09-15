@@ -4,16 +4,19 @@ import plotly.express as px
 import requests
 import io
 
-# 대시보드 기본 설정
+# 대시보드 기본 설정 및 웹 브라우저 타이틀 정의
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
-st.markdown("<br><br>", unsafe_allow_html=True)
-SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
 
+# 메인 타이틀 글자와 아래 레이아웃 콘텐츠 간의 가독성을 위한 수직 여백 확보
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
+URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
 @st.cache_data(ttl=5)
 def load_data():
     try:
+        #requests 서버 통신을 통해 엑셀 시트 원본을 바이너리 형태로 격리 다운로드
         response = requests.get(URL_BASE, timeout=10)
         if response.status_code == 200:
             excel_file = io.BytesIO(response.content)
@@ -29,13 +32,13 @@ def load_data():
 
 df_sched, df_check = load_data()
 
+# Streamlit 데이터 상태 보존 기법 가동
 if "df_check_data" not in st.session_state and df_check is not None:
     st.session_state.df_sched_data = df_sched
     st.session_state.df_check_data = df_check
 else:
     df_sched = st.session_state.get("df_sched_data", df_sched)
     df_check = st.session_state.get("df_check_data", df_check)
-
 if df_sched is not None and df_check is not None:
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
@@ -45,11 +48,7 @@ if df_sched is not None and df_check is not None:
     if 'Category' in df_check.columns:
         df_check['Category'] = df_check['Category'].ffill()
 
-    # ------------------------------------------------------------------
-    # 전 프로젝트 통합 달력형 타임라인 보기
-    # ------------------------------------------------------------------
-    col_todo, col_cal = st.columns([1.8, 1.2])
-
+    # 상단 컨테이너 컴포넌트들의 윗선 정렬 높낮이를 강제로 정렬하는 글로벌 스타일
     st.markdown(
         """
         <style>
@@ -65,14 +64,16 @@ if df_sched is not None and df_check is not None:
         unsafe_allow_html=True
     )
 
+    # 좌우 화면 분할 가동 (투두리스트 가중치 1.8 : 달력 가중치 1.2)
+    col_todo, col_cal = st.columns([1.8, 1.2])
     with col_todo:        
-        # 1. 세션 상태 초기화
+        # 할 일 목록 세션 변수 검증 및 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        # 클릭 이벤트 처리 (쿼리 파라미터 방식을 활용해 순수 HTML 버튼 클릭 감지)
+        # 쿼리 파라미터 방식을 적용하여 모바일 클릭 렉 없는 실시간 상태 변화 반영
         query_params = st.query_params
         if "toggle_idx" in query_params:
             clicked_idx = int(query_params["toggle_idx"])
@@ -80,7 +81,7 @@ if df_sched is not None and df_check is not None:
             st.query_params.clear()
             st.rerun()
 
-        # 2. 메모 입력 영역 (세로 여백 최소화형 팝오버)
+        # 메모 입력창 팝오버 배치
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
             new_notes = []
@@ -99,7 +100,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 3. HTML/CSS 기반 초박형 컴팩트 리스트 출력
+        # 모바일 가로 줄바꿈 가려짐 현상이 원천 제거된 HTML 블록 리스트 출력
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -133,9 +134,10 @@ if df_sched is not None and df_check is not None:
                 """,
                 unsafe_allow_html=True
             )
+
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-     
     with col_cal:
+        # 대한민국 온라인 가상 서버 표준시(KST) 연동 매칭 및 로컬 고정
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
         current_day = now_dt.day
@@ -144,7 +146,7 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
-            # [새 창 레이아웃] 달력 클릭 시 열리는 단독 시간별 일정 관리 창
+            # [새 창 레이아웃] 특정 날짜 클릭 시 오픈되는 단독 시간 관리 인터페이스
             # ------------------------------------------------------------------
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
@@ -163,6 +165,7 @@ if df_sched is not None and df_check is not None:
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
             
+            # 실제 분 단위 연산을 통한 실시간 지남, 대기 조건부 분기 회생
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
@@ -209,7 +212,7 @@ if df_sched is not None and df_check is not None:
                 )
         else:
             # ------------------------------------------------------------------
-            # [기본 메인 화면] 평소에는 미니 달력만 깔끔하게 노출
+            # [기본 메인 화면] 평소 메인 화면 진입 시 노출되는 깔끔한 미니 달력 스킨
             # ------------------------------------------------------------------
             st.markdown(
                 f"""
@@ -242,6 +245,7 @@ if df_sched is not None and df_check is not None:
                         <tr style="color: #444;">
                             <td><a href="?view_schedule=13" target="_blank" style="text-decoration:none; color:#E53935;">13</a></td>
                             <td><a href="?view_schedule=14" target="_blank" style="text-decoration:none; color:#444;">14</a></td>
+                            <!-- 오늘 날짜인 15일에 강조 연두 사각형 배경색 및 테두리 부여 -->
                             <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;">
                                 <a href="?view_schedule=15" target="_blank" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
                             </td>
@@ -272,98 +276,11 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-
-        # 3. [신규 기능] 선택된 날짜의 06:00 ~ 02:00 시간별 일정 타임라인 출력 영역
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-
-        # 3. [수정 반영] 달력을 클릭했을 때만(cal_day 파라미터가 감지될 때만) 화면에 표시
-        if "cal_day" in query_params:
-            st.markdown(f"##### {selected_day}일 시간별 일정 관리")
-            
-            # 06:00부터 다음 날 02:00까지의 시간 배열 구성
-            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
-            
-            # [시간 계산 보정] 온라인 서버 시간 기준 현재 시각 객체 생성
-            now_dt = pd.Timestamp.now()
-            current_hour_now = now_dt.hour
-            current_min_now = now_dt.minute
-            
-            # 현재 시각을 6시 시작 기준의 절대 분(Minute) 수치로 환산하여 완벽하게 비교합니다.
-            now_absolute_mins = current_hour_now * 60 + current_min_now
-            if current_hour_now < 6:  # 00시, 01시, 02시는 다음 날로 계산하기 위해 24시간을 더함
-                now_absolute_mins += 24 * 60
-
-            # 날짜별 더미 일정 데이터 맵
-            mock_events = {
-                15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
-                16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
-            }
-            day_events = mock_events.get(selected_day, {})
-
-            st.markdown(
-                """
-                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 8px; padding: 5px; background-color: #FFFFFF;">
-                """, 
-                unsafe_allow_html=True
-            )
-
-            for h_str in hours_list:
-                event_text = day_events.get(h_str, "일정 없음")
-                state_key = f"cal_status_{selected_day}_{h_str}"
-                
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                    
-                is_done = st.session_state[state_key]
-                
-                # 리스트의 대상 시간대를 분(Minute) 수치로 환산
-                target_hour = int(h_str.split(":")[0])
-                target_absolute_mins = target_hour * 60
-                if target_hour < 6:
-                    target_absolute_mins += 24 * 60
-                
-                # 스타일 및 상태 분기 조건문 (분 단위까지 철저하게 대조)
-                if is_done:
-                    bg_c = "#E8F5E9"
-                    text_c = "#2E7D32"
-                    border_c = "#A5D6A7"
-                    status_lbl = "완료"
-                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
-                    # 현재 실제 시간보다 과거인 경우만 빨간색(지남) 처리
-                    bg_c = "#FFEBEE"
-                    text_c = "#D32F2F"
-                    border_c = "#EF9A9A"
-                    status_lbl = "지남"
-                else:
-                    # 아직 오지 않은 미래 시간대는 정상적으로 회색(대기) 처리
-                    bg_c = "#F5F5F5"
-                    text_c = "#616161"
-                    border_c = "#E0E0E0"
-                    status_lbl = "대기"
-
-                st.markdown(
-                    f"""
-                    <a href="?cal_day={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 3px;">
-                        <div style="
-                            display: flex;
-                            justify-content: space-between;
-                            background-color: {bg_c}; 
-                            color: {text_c}; 
-                            border: 1px solid {border_c}; 
-                            border-radius: 4px; 
-                            padding: 4px 8px; 
-                            font-size: 12px;
-                        ">
-                            <span style="font-weight: bold;">[{h_str}] {event_text}</span>
-                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 4px; border-radius:3px;">{status_lbl}</span>
-                        </div>
-                    </a>
-                    """,
-                    unsafe_allow_html=True
-                )
-                
-            st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("---")
+    # ------------------------------------------------------------------
+    # 전 프로젝트 마일스톤 통합 비교 타임라인 시각화 영역
+    # ------------------------------------------------------------------
+    st.markdown("### 프로젝트별 품질 활동 일정 전체 비교")
     
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
@@ -401,7 +318,6 @@ if df_sched is not None and df_check is not None:
     if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
-        # 1. 기본 타임라인 차트 생성
         fig_all = px.timeline(
             df_all_timeline,
             x_start="심의예정일",
@@ -416,59 +332,36 @@ if df_sched is not None and df_check is not None:
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         
-        # 공통 스타일 정의 (정중앙 정렬 및 흰색/굵게)
+        # [요구사항 1 반영] 막대 그래프 내의 Q1 및 모든 Gate 명칭 가운데 정렬 및 하얗고 굵게 지정
         fig_all.update_traces(
             textposition="inside",
             insidetextanchor="middle",
             texttemplate="<b>%{text}</b>",
             textfont=dict(color="white", size=12)
         )
+        
+        try:
+            from streamlit_js_eval import streamlit_js_eval
+            screen_width = streamlit_js_eval(js_expressions="window.innerWidth", key="WIDTH_CHECK")
+        except:
+            screen_width = None
 
-        # -----------------------------------------------------------
-        # [핵심] 자바스크립트를 이용해 현재 브라우저의 화면 너비(Width) 체크
-        # -----------------------------------------------------------
-        # 사용자의 화면 폭을 실시간으로 가져오는 컴포넌트 뷰포트 설정
-        from streamlit_js_eval import streamlit_js_eval
-        screen_width = streamlit_js_eval(js_expressions="window.innerWidth", key="WIDTH_CHECK")
-
-        # 화면 너비를 가져오는 중이거나, 화면 폭이 768px 이하인 경우 (모바일)
         if screen_width is not None and screen_width <= 768:
-            # 모바일 특화 레이아웃 적용
-            fig_all.update_traces(width=0.6)  # 막대 두껍게
-            fig_all.update_layout(
-                height=180,
-                margin=dict(l=10, r=5, t=30, b=10),
-                showlegend=False  # 모바일은 범례 숨김
-            )
+            fig_all.update_traces(width=0.6)
+            fig_all.update_layout(height=180, margin=dict(l=10, r=5, t=30, b=10), showlegend=False)
             fig_all.update_yaxes(tickfont=dict(size=11))
         else:
-            # PC/태블릿 기본 레이아웃 유지
-            fig_all.update_layout(
-                height=250,
-                margin=dict(l=10, r=10, t=40, b=10),
-                showlegend=True   # PC는 범례 표시
-            )
+            fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10), showlegend=True)
             
-        # -----------------------------------------------------------
-        # [새로운 기능] 확대 기능 차단 및 마우스 드래그 시 좌우 이동(Pan) 설정
-        # -----------------------------------------------------------
-        fig_all.update_layout(
-            dragmode="pan",  # 마우스 드래그 기본 동작을 확대(zoom)에서 이동(pan)으로 변경
-            xaxis=dict(
-                fixedrange=False  # X축(날짜축)은 드래그로 이동이 가능하게 허용
-            ),
-            yaxis=dict(
-                fixedrange=True   # Y축(프로젝트명)은 위아래로 움직이거나 확대되지 않도록 고정
-            )
-        )
-        
+        # 손가락 드래그 액션 시 모바일 찌그러짐 줌인 현상을 막기 위한 이동(Pan) 고정 식 주입
+        fig_all.update_layout(dragmode="pan", xaxis=dict(fixedrange=False), yaxis=dict(fixedrange=True))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
 
     st.markdown("---")
     # ------------------------------------------------------------------
-    # 개별 프로젝트 세부 점검 영역
+    # [요구사항 2 반영] 프로젝트 선택 시 개별 열람 기능 및 실시간 체크리스트 관리
     # ------------------------------------------------------------------
     st.markdown("### 프로젝트별 세부 품질활동 점검")
     
@@ -483,7 +376,7 @@ if df_sched is not None and df_check is not None:
         if 'Owner' in p_rows.columns:
             valid_owners = p_rows['Owner'].dropna()
             if not valid_owners.empty:
-                owner_info = str(valid_owners.iloc[0])
+                owner_info = str(valid_owners.iloc)
 
         timeline_data = []
 
@@ -496,8 +389,8 @@ if df_sched is not None and df_check is not None:
             dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
-                target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
-                dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
+                target_dt = pd.to_datetime(target_val.iloc).replace(tzinfo=None)
+                dead_dt = pd.to_datetime(dead_val.iloc).replace(tzinfo=None)
                 
                 gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
                 total_tasks = len(gate_check)
@@ -516,8 +409,7 @@ if df_sched is not None and df_check is not None:
                     d_day_str = "D-Day (오늘마감)"
                 
                 timeline_data.append({
-                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day,
-                    "프로젝트": selected_project  # 개별 플로팅용 키 추가
+                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day, "프로젝트": selected_project
                 })
 
         if timeline_data:
@@ -529,8 +421,8 @@ if df_sched is not None and df_check is not None:
             with col_info2:
                 st.metric("선택 프로젝트 종합 진척률", f"{int(rdf['Progress'].mean())}%")
             
-            # [기능 2번 추가] 선택한 개별 프로젝트의 전용 타임라인 달력 표시 영역
-            st.markdown(f"##### 📅 {selected_project} 개별 마일스톤 일정 열람")
+            # 개별 열람 프로젝트 전용 타임라인 바 배치
+            st.markdown(f"##### {selected_project} 개별 마일스톤 일정 열람")
             fig_single = px.timeline(
                 rdf,
                 x_start="Start",
@@ -544,31 +436,23 @@ if df_sched is not None and df_check is not None:
             fig_single.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
             fig_single.update_yaxes(autorange="reversed")
             
-            # [기능 1번 적용] 개별 그래프 내부 글자 정렬 및 흰색/굵게 스타일링
             fig_single.update_traces(
                 textposition="inside",
                 insidetextanchor="middle",
-                texttemplate="<b>%{text}</b>",  # HTML <b> 태그로 텍스트를 강제로 굵게 만듦
-                textfont=dict(
-                    color="white",
-                    size=13
-                )
+                texttemplate="<b>%{text}</b>",
+                textfont=dict(color="white", size=13)
             )
+            
             fig_single.update_layout(
                 height=180, 
                 margin=dict(l=10, r=10, t=10, b=10), 
                 showlegend=False,
-                dragmode="pan",      # 마우스 드래그 기본 동작을 좌우 이동으로 변경
-                xaxis=dict(
-                    fixedrange=False # X축(날짜)은 좌우 드래그 이동 허용
-                ),
-                yaxis=dict(
-                    fixedrange=True  # Y축(Gate 명칭)은 확대 및 위아래 이동 차단
-                )
+                dragmode="pan",
+                xaxis=dict(fixedrange=False),
+                yaxis=dict(fixedrange=True)
             )
             st.plotly_chart(fig_single, use_container_width=True, config={'displayModeBar': False})
             
-            #이 아래부터는 기존에 가지고 계시던 코드가 그대로 이어집니다.
             st.markdown("<br>", unsafe_allow_html=True)
 
             col_left, col_right = st.columns(2)
