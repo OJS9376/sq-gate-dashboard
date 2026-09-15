@@ -172,7 +172,8 @@ if df_sched is not None and df_check is not None:
             with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
                 st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
                 
-                hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+                # 사용자가 요청한 06:00부터 23:00까지만 정확히 표현하도록 범위 고정
+                hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
                 
                 if f"stored_events_{selected_day}" not in st.session_state:
                     st.session_state[f"stored_events_{selected_day}"] = {}
@@ -211,13 +212,12 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
-            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+            # 출력용 타임라인도 06:00부터 23:00까지만 깔끔하게 떨어지도록 수정
+            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
-            if current_hour_now < 6:
-                now_absolute_mins += 24 * 60
 
             if f"stored_events_{selected_day}" not in st.session_state:
                 st.session_state[f"stored_events_{selected_day}"] = {}
@@ -233,6 +233,7 @@ if df_sched is not None and df_check is not None:
                 st.query_params["view_schedule"] = selected_day
                 st.rerun()
 
+            # 독립된 레벨에서 타임라인 바가 딱 한 번만 그려지도록 제어
             for h_str in hours_list:
                 has_event = h_str in day_events
                 event_text = day_events.get(h_str, "일정 없음")
@@ -245,150 +246,6 @@ if df_sched is not None and df_check is not None:
                 
                 target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
-                if target_hour < 6:
-                    target_absolute_mins += 24 * 60
-                
-                if is_done:
-                    bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
-                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
-                    bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
-                else:
-                    if has_event:
-                        bg_c = "#FFFDE7"; text_c = "#F57F17"; border_c = "#FFF59D"; status_lbl = "대기"
-                    else:
-                        bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
-
-                st.markdown(
-                    f"""
-                    <a href="?view_schedule={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block;">
-                        <div style="
-                            display: flex; 
-                            justify-content: space-between; 
-                            background-color: {bg_c}; 
-                            color: {text_c}; 
-                            border: 1px solid {border_c}; 
-                            border-radius: 6px; 
-                            padding: 6px 12px; 
-                            margin-bottom: 4px; 
-                            font-weight: bold; 
-                            font-size: 14px;
-                            box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                        ">
-                            <span>[{h_str}] {event_text}</span>
-                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.4); padding: 0 5px; border-radius:3px;">{status_lbl}</span>
-                        </div>
-                    </a>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
-            
-            current_hour_now = now_dt.hour
-            current_min_now = now_dt.minute
-            now_absolute_mins = current_hour_now * 60 + current_min_now
-            if current_hour_now < 6:
-                now_absolute_mins += 24 * 60
-
-            if f"stored_events_{selected_day}" not in st.session_state:
-                st.session_state[f"stored_events_{selected_day}"] = {}
-            day_events = st.session_state[f"stored_events_{selected_day}"]
-
-            if "cal_toggle_hour" in query_params:
-                t_hour = query_params["cal_toggle_hour"]
-                state_key = f"cal_status_{selected_day}_{t_hour}"
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                st.session_state[state_key] = not st.session_state[state_key]
-                st.query_params.clear()
-                st.query_params["view_schedule"] = selected_day
-                st.rerun()
-
-            for h_str in hours_list:
-                has_event = h_str in day_events
-                event_text = day_events.get(h_str, "일정 없음")
-                state_key = f"cal_status_{selected_day}_{h_str}"
-                
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                    
-                is_done = st.session_state[state_key]
-                
-                target_hour = int(h_str.split(":")[0])
-                target_absolute_mins = target_hour * 60
-                if target_hour < 6:
-                    target_absolute_mins += 24 * 60
-                
-                if is_done:
-                    bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
-                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
-                    bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
-                else:
-                    if has_event:
-                        bg_c = "#FFFDE7"; text_c = "#F57F17"; border_c = "#FFF59D"; status_lbl = "대기"
-                    else:
-                        bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
-
-                st.markdown(
-                    f"""
-                    <a href="?view_schedule={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block;">
-                        <div style="
-                            display: flex; 
-                            justify-content: space-between; 
-                            background-color: {bg_c}; 
-                            color: {text_c}; 
-                            border: 1px solid {border_c}; 
-                            border-radius: 6px; 
-                            padding: 6px 12px; 
-                            margin-bottom: 4px; 
-                            font-weight: bold; 
-                            font-size: 14px;
-                            box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                        ">
-                            <span>[{h_str}] {event_text}</span>
-                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.4); padding: 0 5px; border-radius:3px;">{status_lbl}</span>
-                        </div>
-                    </a>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
-            
-            current_hour_now = now_dt.hour
-            current_min_now = now_dt.minute
-            now_absolute_mins = current_hour_now * 60 + current_min_now
-            if current_hour_now < 6:
-                now_absolute_mins += 24 * 60
-
-            if f"stored_events_{selected_day}" not in st.session_state:
-                st.session_state[f"stored_events_{selected_day}"] = {}
-            day_events = st.session_state[f"stored_events_{selected_day}"]
-
-            if "cal_toggle_hour" in query_params:
-                t_hour = query_params["cal_toggle_hour"]
-                state_key = f"cal_status_{selected_day}_{t_hour}"
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                st.session_state[state_key] = not st.session_state[state_key]
-                st.query_params.clear()
-                st.query_params["view_schedule"] = selected_day
-                st.rerun()
-
-            for h_str in hours_list:
-                has_event = h_str in day_events
-                event_text = day_events.get(h_str, "일정 없음")
-                state_key = f"cal_status_{selected_day}_{h_str}"
-                
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                    
-                is_done = st.session_state[state_key]
-                
-                target_hour = int(h_str.split(":")[0])
-                target_absolute_mins = target_hour * 60
-                if target_hour < 6:
-                    target_absolute_mins += 24 * 60
                 
                 if is_done:
                     bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
