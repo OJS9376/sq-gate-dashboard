@@ -83,7 +83,7 @@ if df_sched is not None and df_check is not None:
                     except:
                         pass
 
-    if all_projects_timeline:
+        if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
         fig_all = px.timeline(
@@ -100,18 +100,20 @@ if df_sched is not None and df_check is not None:
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         
-        # [기능 1번 반영] 막대 그래프 내부 텍스트 가운데 정렬, 하얗고 굵게 변경
+        # -----------------------------------------------------------
+        # [기능 1번 반영 & 오류 수정] 
+        # 에러가 나던 update_slices를 지우고, texttemplate을 직접 적용합니다.
+        # -----------------------------------------------------------
         fig_all.update_traces(
             textposition="inside",          # 글자를 막대 안쪽(가운데)으로 위치 조절
             insidetextanchor="middle",      # 내부 텍스트 앵커를 정중앙으로 설정
+            texttemplate="<b>%{text}</b>",  # Q1 등의 글자를 강제로 굵게(Bold) 지정
             textfont=dict(
                 color="white",              # 글자색 하얗게
-                size=12,
-                family="Arial-Bold"         # 굵은 글씨체 적용 (또는 아래의 별도 스타일 지정 방식을 따름)
+                size=12                     # 글자 크기 설정
             )
         )
-        # HTML <b> 태그를 활용해 강제로 글자를 굵게(Bold) 지정하는 처리 추가
-        fig_all.update_slices(textfont_size=12) 
+        
         fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
