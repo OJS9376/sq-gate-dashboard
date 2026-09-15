@@ -55,13 +55,14 @@ if df_sched is not None and df_check is not None:
     if 'Category' in df_check.columns:
         df_check['Category'] = df_check['Category'].ffill()
 
-    if "initialized_events" not in st.session_state:
-        row in d in range(1, 31):
-            st.session_state[f"stored_events_{d}"] = {}
-            hours_list_init = [f"{str(h).zfill(2)}:00" row in h in range(6, 24)]
-            row in h_str in hours_list_init:
-                st.session_state[f"cal_status_{d}_{h_str}"] = False
-        
+        if "initialized_events" not in st.session_state:
+            for m in range(1, 13):
+                for d in range(1, 32):
+                    st.session_state[f"stored_events_{st.session_state.cal_year}_{m}_{d}"] = {}
+                    hours_list_init = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
+                    for h_str in hours_list_init:
+                        st.session_state[f"cal_status_{st.session_state.cal_year}_{m}_{d}_{h_str}"] = False
+
 if df_cal_saved is not None and not df_cal_saved.empty:
     for _, row in df_cal_saved.iterrows():
         try:
