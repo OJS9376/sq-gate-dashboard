@@ -318,7 +318,6 @@ if df_sched is not None and df_check is not None:
                 )
                 
             st.markdown("</div>", unsafe_allow_html=True)
-#######################################################################
     
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
