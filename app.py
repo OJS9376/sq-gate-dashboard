@@ -50,10 +50,16 @@ if df_sched is not None and df_check is not None:
         df_check['Category'] = df_check['Category'].ffill()
 
     # ------------------------------------------------------------------
-    # 전 프로젝트 통합 달력형 타임라인 보기
+    # 전 프로젝트 통합 달력형 타임라인 보기 및 보기 모드 선택 필터
     # ------------------------------------------------------------------
-    st.markdown("### 전 프로젝트 통합 마일스톤 달력")
-    st.caption("모든 프로젝트의 Gate별 마감 일정을 타임라인 달력 형태로 한눈에 비교합니다.")
+    st.markdown("### 전 프로젝트 마일스톤 달력")
+    
+    # 전체 / 개별 선택 필터 추가
+    view_mode = st.radio(
+        "달력 보기 모드 선택",
+        ["전체 프로젝트 한눈에 보기", "특정 프로젝트만 골라보기"],
+        horizontal=True
+    )
     
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
@@ -73,14 +79,22 @@ if df_sched is not None and df_check is not None:
                         gate_check = df_check[(df_check['Project'] == p_name) & (df_check['Gate'].str.strip() == f"Q{i}")]
                         total_tasks = len(gate_check)
                         progress = 0
+                        
+                        # 해당 Gate의 첫 번째 대표 상위 카테고리 명칭 가져오기
+                        category_name = f"Q{i}"
                         if total_tasks > 0:
                             completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
                             progress = int((completed_tasks / total_tasks) * 100)
+                            
+                            valid_categories = gate_check['Category'].dropna()
+                            if not valid_categories.empty:
+                                # 대표 상위 카테고리 명칭과 Gate 번호 결합 (예: Q1_개발계획서 검토)
+                                category_name = f"Q{i}_{str(valid_categories.iloc[0]).strip()}"
                         
                         all_projects_timeline.append({
                             "프로젝트": p_name,
                             "Gate": f"Q{i}",
-                            "표시명": f"{p_name}_{f'Q{i}'}",
+                            "카테고리표시": category_name,
                             "심의예정일": start_dt,
                             "최종마감일": end_dt,
                             "진척률(%)": progress
@@ -91,20 +105,30 @@ if df_sched is not None and df_check is not None:
     if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
+        # 필터링 조건 분기
+        if view_mode == "특정 프로젝트만 골라보기":
+            filter_project = st.selectbox("달력에 표시할 프로젝트 선택", df_all_timeline["프로젝트"].unique(), key="cal_filter")
+            df_display_timeline = df_all_timeline[df_all_timeline["프로젝트"] == filter_project]
+        else:
+            df_display_timeline = df_all_timeline
+            
+        # text="카테고리표시" 설정을 통해 막대 위에 상위 카테고리 이름을 노출합니다.
         fig_all = px.timeline(
-            df_all_timeline,
+            df_display_timeline,
             x_start="심의예정일",
             x_end="최종마감일",
             y="프로젝트",
             color="Gate",
-            text="Gate",
+            text="카테고리표시",
             hover_data=["진척률(%)"],
-            title="프로젝트별 품질 활동 일정 전체 비교",
+            title="프로젝트별 품질 활동 일정 비교 달력",
             color_discrete_sequence=px.colors.qualitative.Safe
         )
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
-        fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
+        fig_all.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
+        # 텍스트가 막대 안팎에 깔끔하게 안착하도록 설정
+        fig_all.update_traces(textposition="inside")
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
@@ -112,12 +136,12 @@ if df_sched is not None and df_check is not None:
     st.markdown("---")
 
     # ------------------------------------------------------------------
-    # 개별 프로젝트 세부 점검 영역
+    # 개별 프로젝트 세부 점검 및 편집 영역
     # ------------------------------------------------------------------
     st.markdown("### 프로젝트별 세부 품질활동 점검")
     
     project_list = df_sched['Project'].dropna().unique()
-    selected_project = st.selectbox("조회 및 편집할 프로젝트 선택", project_list)
+    selected_project = st.selectbox("조회 및 편집할 프로젝트 선택", project_list, key="main_project_filter")
     
     p_rows = df_sched[df_sched['Project'] == selected_project]
     p_check = df_check[df_check['Project'] == selected_project]
@@ -140,28 +164,31 @@ if df_sched is not None and df_check is not None:
             dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
-                target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
-                dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
-                
-                gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
-                total_tasks = len(gate_check)
-                progress = 0
-                
-                if total_tasks > 0:
-                    completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
-                    progress = int((completed_tasks / total_tasks) * 100)
-                
-                d_day = (dead_dt - today).days
-                if d_day > 0:
-                    d_day_str = f"D-{d_day} (마감 전)"
-                elif d_day < 0:
-                    d_day_str = f"D+{-d_day} (마감 지연)"
-                else:
-                    d_day_str = "D-Day (오늘마감)"
-                
-                timeline_data.append({
-                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day
-                })
+                try:
+                    target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
+                    dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
+                    
+                    gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
+                    total_tasks = len(gate_check)
+                    progress = 0
+                    
+                    if total_tasks > 0:
+                        completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
+                        progress = int((completed_tasks / total_tasks) * 100)
+                    
+                    d_day = (dead_dt - today).days
+                    if d_day > 0:
+                        d_day_str = f"D-{d_day} (마감 전)"
+                    elif d_day < 0:
+                        d_day_str = f"D+{-d_day} (마감 지연)"
+                    else:
+                        d_day_str = "D-Day (오늘마감)"
+                    
+                    timeline_data.append({
+                        "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day
+                    })
+                except:
+                    pass
 
         if timeline_data:
             rdf = pd.DataFrame(timeline_data)
@@ -190,7 +217,7 @@ if df_sched is not None and df_check is not None:
 
             with col_right:
                 st.markdown("##### 세부 활동 점검 및 상태 변경")
-                selected_gate = st.selectbox("조회할 Gate 선택", rdf['Gate'].unique())
+                selected_gate = st.selectbox("조회할 Gate 선택", rdf['Gate'].unique(), key="sub_gate_filter")
                 
                 active_mask = (df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == selected_gate)
                 active_df = df_check[active_mask]
@@ -199,6 +226,11 @@ if df_sched is not None and df_check is not None:
                     show_check = active_df[["Category", "Activity", "Status"]].copy()
                     show_check['Status'] = show_check['Status'].fillna("대기")
                     show_check.columns = ["상위 카테고리", "수행 활동", "상태"]
+                    
+                    edited_df = st.data_editor(
+                        show_check,
+                        column_config={
+                            "상위 카테고리": st.column_config.TextColumn("상위 카테고리", disabled=True),
                     
                     edited_df = st.data_editor(
                         show_check,
