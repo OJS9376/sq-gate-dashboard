@@ -234,22 +234,22 @@ if df_sched is not None and df_check is not None:
         if "cal_month" not in st.session_state:
             st.session_state.cal_month = now_dt.month
 
-        query_params = st.query_params
-        if "nav_month" in query_params:
-            direction = query_params["nav_month"]
-            if direction == "prev":
-                st.session_state.cal_month -= 1
-                if st.session_state.cal_month < 1:
-                    st.session_state.cal_month = 12
-                    st.session_state.cal_year -= 1
-            elif direction == "next":
-                st.session_state.cal_month += 1
-                if st.session_state.cal_month > 12:
-                    st.session_state.cal_month = 1
-                    st.session_state.cal_year += 1
-            st.query_params.clear()
-            st.rerun()
+                # [월 이동을 안전하게 처리하는 콜백 함수 선언]
+        def prev_month():
+            st.session_state.cal_month -= 1
+            if st.session_state.cal_month < 1:
+                st.session_state.cal_month = 12
+                st.session_state.cal_year -= 1
 
+        def next_month():
+            st.session_state.cal_month += 1
+            if st.session_state.cal_month > 12:
+                st.session_state.cal_month = 1
+                st.session_state.cal_year += 1
+
+        # 기존 query_params 변수 정의는 아래 일별 일정 코드 작성을 위해 유지합니다.
+        query_params = st.query_params
+        
         display_month_name = f"{st.session_state.cal_month}월"
 
         _, total_days_in_month = calendar.monthrange(st.session_state.cal_year, st.session_state.cal_month)
