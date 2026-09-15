@@ -83,32 +83,22 @@ if df_sched is not None and df_check is not None:
     )
 
     with col_todo:        
-        # 할 일 목록 세션 변수 검증 및 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        # 쿼리 파라미터를 확인하여 선택된 날짜가 있는지 추출 (타이틀 연동용)
         query_params = st.query_params
-        current_sel_day = 15 # 기본값은 오늘 날짜
+        current_sel_day = 15
         if "view_schedule" in query_params:
             current_sel_day = int(query_params.get("view_schedule", 15))
 
-        # [수정 반영] 우측에 일정 전용 창이 열려있다면 좌측 제목도 이에 맞추어 동적으로 변환합니다.
-        if "view_schedule" in query_params:
-            st.markdown(f"### {current_sel_day}일 할 일 입력 및 수정")
-        else:
-            # 평소 미니 달력만 있을 때는 공간의 여유를 위해 공백만 유지
-            st.markdown("<div style='margin-bottom: 2px;'></div>", unsafe_allow_html=True)
-
-        # 메모 입력창 팝오버 배치 (라벨 문구의 일치감을 높였습니다)
-        with st.popover(f"{current_sel_day}일 할 일 입력 및 수정하기", use_container_width=True):
-            st.markdown("##### 5개의 할 일을 입력하세요")
+        with st.popover("우선 순위 입력하기", use_container_width=True):
+            st.markdown("##### 오늘의 주요 우선순위 5개 관리")
             new_notes = []
             for idx in range(5):
                 note = st.text_input(
-                    f"{idx+1}번 할 일", 
+                    f"{idx+1}순위 활동", 
                     value=st.session_state.todo_notes[idx], 
                     key=f"edit_note_{idx}"
                 )
@@ -116,16 +106,15 @@ if df_sched is not None and df_check is not None:
             
             if st.button("저장 후 반영하기", use_container_width=True):
                 st.session_state.todo_notes = new_notes
-                st.success("메모가 대시보드에 반영되었습니다.")
+                st.success("우선 순위가 대시보드에 반영되었습니다.")
                 st.rerun()
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 오리지널 슬림 HTML 리스트 출력
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
-                current_note = f"할 일 {idx+1} (내용을 입력해 주세요)"
+                current_note = f"우선순위 {idx+1} (내용을 입력해 주세요)"
                 
             is_done = st.session_state.todo_status[idx]
             
@@ -167,8 +156,32 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             selected_day = int(query_params.get("view_schedule", current_day))
-            st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
             
+            with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
+                st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
+                
+                hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+                
+                if f"stored_events_{selected_day}" not in st.session_state:
+                    if selected_day == 15:
+                        st.session_state[f"stored_events_{selected_day}"] = {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"}
+                    elif selected_day == 16:
+                        st.session_state[f"stored_events_{selected_day}"] = {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"}
+                    else:
+                        st.session_state[f"stored_events_{selected_day}"] = {}
+                
+                updated_events = {}
+                for h_str in hours_setup:
+                    existing_val = st.session_state[f"stored_events_{selected_day}"].get(h_str, "")
+                    user_input_event = st.text_input(f"{h_str} 일정", value=existing_val, key=f"input_ev_{selected_day}_{h_str}")
+                    if user_input_event.strip():
+                        updated_events[h_str] = user_input_event
+                
+                if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
+                    st.session_state[f"stored_events_{selected_day}"] = updated_events
+                    st.success("시간별 품질활동 일정이 저장되었습니다.")
+                    st.rerun()
+
             st.markdown(
                 """
                 <a href="?" target="_self" style="text-decoration:none; display:block;">
@@ -199,11 +212,9 @@ if df_sched is not None and df_check is not None:
             if current_hour_now < 6:
                 now_absolute_mins += 24 * 60
 
-            mock_events = {
-                15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
-                16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
-            }
-            day_events = mock_events.get(selected_day, {})
+            if f"stored_events_{selected_day}" not in st.session_state:
+                st.session_state[f"stored_events_{selected_day}"] = {}
+            day_events = st.session_state[f"stored_events_{selected_day}"]
 
             if "cal_toggle_hour" in query_params:
                 t_hour = query_params["cal_toggle_hour"]
@@ -225,7 +236,7 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":")[0])
+                target_hour = int(h_str.split(":"))
                 target_absolute_mins = target_hour * 60
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
