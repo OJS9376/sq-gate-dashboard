@@ -4,67 +4,73 @@ import plotly.express as px
 import requests
 import io
 
-# 대시보드 기본 설정 및 웹 브라우저 타이틀 정의
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
-
-# 메인 타이틀 글자와 아래 레이아웃 콘텐츠 간의 가독성을 위한 수직 여백 확보
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
+URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
+
 @st.cache_data(ttl=5)
 def load_data():
     try:
-        #requests 서버 통신을 통해 엑셀 시트 원본을 바이너리 형태로 격리 다운로드
         response = requests.get(URL_BASE, timeout=10)
         if response.status_code == 200:
             excel_file = io.BytesIO(response.content)
             df_sched = pd.read_excel(excel_file, sheet_name="Project_Schedule", engine='openpyxl')
             df_check = pd.read_excel(excel_file, sheet_name="Checklist", engine='openpyxl')
-            return df_sched, df_check
+            
+            try:
+                df_cal_saved = pd.read_excel(excel_file, sheet_name="Schedules", engine='openpyxl')
+            except:
+                df_cal_saved = pd.DataFrame(columns=["Day", "Time", "Event"])
+                
+            return df_sched, df_check, df_cal_saved
         else:
             st.error(f"구글 서버 응답 실패 (코드: {response.status_code})")
-            return None, None
+            return None, None, None
     except Exception as e:
         st.error(f"구글 스프레드시트 실시간 통신 실패 보완 처리 중: {e}")
-        return None, None
+        return None, None, None
 
-df_sched, df_check = load_data()
+df_sched, df_check, df_cal_saved = load_data()
 
-# Streamlit 데이터 상태 보존 기법 가동
 if "df_check_data" not in st.session_state and df_check is not None:
     st.session_state.df_sched_data = df_sched
     st.session_state.df_check_data = df_check
+    st.session_state.df_cal_data = df_cal_saved
 else:
     df_sched = st.session_state.get("df_sched_data", df_sched)
     df_check = st.session_state.get("df_check_data", df_check)
+    df_cal_saved = st.session_state.get("df_cal_data", df_cal_saved)
+
 if df_sched is not None and df_check is not None:
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
+    if df_cal_saved is not None and not df_cal_saved.empty:
+        df_cal_saved.columns = df_cal_saved.columns.str.strip()
     
     df_check['Project'] = df_check['Project'].ffill()
     df_check['Gate'] = df_check['Gate'].ffill()
     if 'Category' in df_check.columns:
         df_check['Category'] = df_check['Category'].ffill()
 
-    # 상단 컨테이너 컴포넌트들의 윗선 정렬 높낮이를 강제로 정렬하는 글로벌 스타일
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stHorizontalBlock"] {
-            align-items: flex-start !important;
-        }
-        div[data-testid="column"]:nth-of-type(2) {
-            margin-top: 0px !important;
-            padding-top: 0px !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    if "initialized_events" not in st.session_state:
+        for d in range(1, 31):
+            st.session_state[f"stored_events_{d}"] = {}
+        
+        if df_cal_saved is not None and not df_cal_saved.empty:
+            for _, row in df_cal_saved.iterrows():
+                try:
+                    d_val = int(row["Day"])
+                    t_val = str(row["Time"]).strip()
+                    e_val = str(row["Event"]).strip()
+                    if d_val in range(1, 31) and t_val:
+                        st.session_state[f"stored_events_{d_val}"][t_val] = e_val
+                except:
+                    pass
+        st.session_state["initialized_events"] = True
 
-    # 좌우 화면 분할 가동 (투두리스트 가중치 1.8 : 달력 가중치 1.2)
     col_todo, col_cal = st.columns([1.8, 1.2])
 
     st.markdown(
