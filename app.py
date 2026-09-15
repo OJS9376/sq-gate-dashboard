@@ -300,7 +300,8 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":"))
+                # [오류 완전 수정] [0] 대괄호를 추가하여 시(Hour) 정보만 정확하게 꺼내 정수로 형변환합니다.
+                target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 
                 if is_done:
