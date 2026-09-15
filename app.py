@@ -90,7 +90,7 @@ if df_sched is not None and df_check is not None:
                             valid_categories = gate_check['Category'].dropna()
                             if not valid_categories.empty:
                                 # [핵심 변경] <br> 태그를 넣어 Q1과 상위 카테고리 명이 줄바꿈되도록 조율
-                                category_name = f"Q{i}<br>[{str(valid_categories.iloc).strip()}]"
+                                category_name = f"Q{i}<br>[{str(valid_categories.iloc[0]).strip()}]"
                         
                         all_projects_timeline.append({
                             "프로젝트": p_name,
