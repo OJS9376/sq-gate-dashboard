@@ -83,7 +83,7 @@ if df_sched is not None and df_check is not None:
                     except:
                         pass
 
-        if all_projects_timeline:
+    if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
         fig_all = px.timeline(
@@ -100,17 +100,14 @@ if df_sched is not None and df_check is not None:
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         
-        # -----------------------------------------------------------
-        # [기능 1번 반영 & 오류 수정] 
-        # 에러가 나던 update_slices를 지우고, texttemplate을 직접 적용합니다.
-        # -----------------------------------------------------------
+        # [기능 1번 반영] 정중앙 정렬 및 글자 흰색/굵게 처리
         fig_all.update_traces(
-            textposition="inside",          # 글자를 막대 안쪽(가운데)으로 위치 조절
-            insidetextanchor="middle",      # 내부 텍스트 앵커를 정중앙으로 설정
-            texttemplate="<b>%{text}</b>",  # Q1 등의 글자를 강제로 굵게(Bold) 지정
+            textposition="inside",
+            insidetextanchor="middle",
+            texttemplate="<b>%{text}</b>",
             textfont=dict(
-                color="white",              # 글자색 하얗게
-                size=12                     # 글자 크기 설정
+                color="white",
+                size=12
             )
         )
         
@@ -118,7 +115,6 @@ if df_sched is not None and df_check is not None:
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
-
     st.markdown("---")
     # ------------------------------------------------------------------
     # 개별 프로젝트 세부 점검 영역
