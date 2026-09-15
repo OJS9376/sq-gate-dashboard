@@ -236,7 +236,7 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":"))
+                target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
