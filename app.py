@@ -175,7 +175,6 @@ if df_sched is not None and df_check is not None:
         if monthly_highlights:
             for item in monthly_highlights:
                 bg_highlight = "#FFFDE7" if "출장" in item["내용"] else "#FFF9C4"
-                text_highlight = "#F57F17" if "출장" in item["내용"] else "#E65100"
                 border_highlight = "#FFF59D" if "출장" in item["내용"] else "#FFE082"
                 lbl_tag = "출장" if "출장" in item["내용"] else "중요"
                 
@@ -183,7 +182,7 @@ if df_sched is not None and df_check is not None:
                     f"""
                     <div style="
                         background-color: {bg_highlight}; 
-                        color: {text_highlight}; 
+                        color: #000000; 
                         border: 1px solid {border_highlight}; 
                         border-radius: 6px; 
                         padding: 8px 12px; 
@@ -195,7 +194,7 @@ if df_sched is not None and df_check is not None:
                         box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
                     ">
                         <span style="font-weight: bold;">[{item["날짜"]} {item["시간"]}] {item["내용"]}</span>
-                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); padding: 2px 6px; border-radius: 4px; font-weight: bold;">{lbl_tag}</span>
+                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); color: #000000; padding: 2px 6px; border-radius: 4px; font-weight: bold;">{lbl_tag}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -209,7 +208,7 @@ if df_sched is not None and df_check is not None:
                 """,
                 unsafe_allow_html=True
             )
-
+            
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         
@@ -281,7 +280,7 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                    API_URL = "https://google.com"
                     try:
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                     except:
@@ -301,7 +300,7 @@ if df_sched is not None and df_check is not None:
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                API_URL = "https://google.com"
                 try:
                     requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                 except:
@@ -312,7 +311,6 @@ if df_sched is not None and df_check is not None:
                 if "cal_toggle_hour" in st.query_params:
                     del st.query_params["cal_toggle_hour"]
                 st.rerun()
-
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
@@ -367,7 +365,7 @@ if df_sched is not None and df_check is not None:
                     bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
                 else:
                     if has_event:
-                        bg_c = "#FFFDE7"; text_c = "#F57F17"; border_c = "#FFF59D"; status_lbl = "대기"
+                        bg_c = "#FFFDE7"; text_c = "#000000"; border_c = "#FFF59D"; status_lbl = "대기"
                     else:
                         bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
 
