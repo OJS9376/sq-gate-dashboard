@@ -395,15 +395,44 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
+            import calendar
+
             def get_day_style(d):
                 d_evs = st.session_state.get(f"stored_events_{d}", {})
                 is_special = any("출장" in txt or "중요" in txt for txt in d_evs.values())
                 
-                if d == now_dt.day and st.session_state.cal_month == now_dt.month:
+                if d == now_dt.day and st.session_state.cal_month == now_dt.month and st.session_state.cal_year == now_dt.year:
                     return "background-color: #E8F5E9; border: 2px solid #2E7D32; border-radius: 4px; font-weight: bold;"
                 elif is_special:
                     return "background-color: #FFFDE7; border: 1px solid #F57F17; border-radius: 4px; font-weight: bold;"
                 return ""
+
+            cal_obj = calendar.Calendar(firstweekday=6)
+            month_weeks = cal_obj.monthdayscalendar(st.session_state.cal_year, st.session_state.cal_month)
+
+            table_rows_html = ""
+            for week in month_weeks:
+                row_html = "<tr style='color: #444;'>"
+                for day_idx, d in enumerate(week):
+                    if d == 0:
+                        row_html += "<td></td>"
+                    else:
+                        style_str = get_day_style(d)
+                        if day_idx == 0:
+                            lbl_color = "#E53935"
+                        elif day_idx == 6:
+                            lbl_color = "#1E88E5"
+                        else:
+                            lbl_color = "#444"
+                            
+                        row_html += f"""
+                        <td style="{style_str}">
+                            <a href="?view_schedule={d}" target="_self" style="text-decoration:none; color:{lbl_color}; display:block; padding:4px;">{d}</a>
+                        </td>
+                        """
+                row_html += "</tr>"
+                table_rows_html += row_html
+
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
@@ -417,53 +446,13 @@ if df_sched is not None and df_check is not None:
                         <tr style="color: #666; font-weight: bold;">
                             <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
                         </tr>
-                        <tr style="color: #444;">
-                            <td></td><td></td>
-                            <td style="{get_day_style(1)}"><a href="?view_schedule=1" target="_self" style="text-decoration:none; color:#AAA;">1</a></td>
-                            <td style="{get_day_style(2)}"><a href="?view_schedule=2" target="_self" style="text-decoration:none; color:#AAA;">2</a></td>
-                            <td style="{get_day_style(3)}"><a href="?view_schedule=3" target="_self" style="text-decoration:none; color:#AAA;">3</a></td>
-                            <td style="{get_day_style(4)}"><a href="?view_schedule=4" target="_self" style="text-decoration:none; color:#AAA;">4</a></td>
-                            <td style="{get_day_style(5)}"><a href="?view_schedule=5" target="_self" style="text-decoration:none; color:#1E88E5;">5</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td style="{get_day_style(6)}"><a href="?view_schedule=6" target="_self" style="text-decoration:none; color:#E53935;">6</a></td>
-                            <td style="{get_day_style(7)}"><a href="?view_schedule=7" target="_self" style="text-decoration:none; color:#444;">7</a></td>
-                            <td style="{get_day_style(8)}"><a href="?view_schedule=8" target="_self" style="text-decoration:none; color:#444;">8</a></td>
-                            <td style="{get_day_style(9)}"><a href="?view_schedule=9" target="_self" style="text-decoration:none; color:#444;">9</a></td>
-                            <td style="{get_day_style(10)}"><a href="?view_schedule=10" target="_self" style="text-decoration:none; color:#444;">10</a></td>
-                            <td style="{get_day_style(11)}"><a href="?view_schedule=11" target="_self" style="text-decoration:none; color:#444;">11</a></td>
-                            <td style="{get_day_style(12)}"><a href="?view_schedule=12" target="_self" style="text-decoration:none; color:#1E88E5;">12</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td style="{get_day_style(13)}"><a href="?view_schedule=13" target="_self" style="text-decoration:none; color:#E53935;">13</a></td>
-                            <td style="{get_day_style(14)}"><a href="?view_schedule=14" target="_self" style="text-decoration:none; color:#444;">14</a></td>
-                            <td style="{get_day_style(15)}"><a href="?view_schedule=15" target="_self" style="text-decoration:none; color:#2E7D32;">15</a></td>
-                            <td style="{get_day_style(16)}"><a href="?view_schedule=16" target="_self" style="text-decoration:none; color:#444;">16</a></td>
-                            <td style="{get_day_style(17)}"><a href="?view_schedule=17" target="_self" style="text-decoration:none; color:#444;">17</a></td>
-                            <td style="{get_day_style(18)}"><a href="?view_schedule=18" target="_self" style="text-decoration:none; color:#444;">18</a></td>
-                            <td style="{get_day_style(19)}"><a href="?view_schedule=19" target="_self" style="text-decoration:none; color:#1E88E5;">19</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td style="{get_day_style(20)}"><a href="?view_schedule=20" target="_self" style="text-decoration:none; color:#E53935;">20</a></td>
-                            <td style="{get_day_style(21)}"><a href="?view_schedule=21" target="_self" style="text-decoration:none; color:#444;">21</a></td>
-                            <td style="{get_day_style(22)}"><a href="?view_schedule=22" target="_self" style="text-decoration:none; color:#444;">22</a></td>
-                            <td style="{get_day_style(23)}"><a href="?view_schedule=23" target="_self" style="text-decoration:none; color:#444;">23</a></td>
-                            <td style="{get_day_style(24)}"><a href="?view_schedule=24" target="_self" style="text-decoration:none; color:#444;">24</a></td>
-                            <td style="{get_day_style(25)}"><a href="?view_schedule=25" target="_self" style="text-decoration:none; color:#444;">25</a></td>
-                            <td style="{get_day_style(26)}"><a href="?view_schedule=26" target="_self" style="text-decoration:none; color:#1E88E5;">26</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td style="{get_day_style(27)}"><a href="?view_schedule=27" target="_self" style="text-decoration:none; color:#E53935;">27</a></td>
-                            <td style="{get_day_style(28)}"><a href="?view_schedule=28" target="_self" style="text-decoration:none; color:#444;">28</a></td>
-                            <td style="{get_day_style(29)}"><a href="?view_schedule=29" target="_self" style="text-decoration:none; color:#444;">29</a></td>
-                            <td style="{get_day_style(30)}"><a href="?view_schedule=30" target="_self" style="text-decoration:none; color:#444;">30</a></td>
-                            <td></td><td></td><td></td>
-                        </tr>
+                        {table_rows_html}
                     </table>
                 </div>
                 """, 
                 unsafe_allow_html=True
             )
+
 
     # ------------------------------------------------------------------
     # 전 프로젝트 마일스톤 통합 비교 타임라인 시각화 영역
