@@ -142,6 +142,7 @@ if df_sched is not None and df_check is not None:
     if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
+        # 1. 기본 타임라인 차트 생성
         fig_all = px.timeline(
             df_all_timeline,
             x_start="심의예정일",
@@ -156,21 +157,43 @@ if df_sched is not None and df_check is not None:
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         
-        # [기능 1번 반영] 정중앙 정렬 및 글자 흰색/굵게 처리
+        # 공통 스타일 정의 (정중앙 정렬 및 흰색/굵게)
         fig_all.update_traces(
             textposition="inside",
             insidetextanchor="middle",
             texttemplate="<b>%{text}</b>",
-            textfont=dict(
-                color="white",
-                size=12
-            )
+            textfont=dict(color="white", size=12)
         )
+
+        # -----------------------------------------------------------
+        # [핵심] 자바스크립트를 이용해 현재 브라우저의 화면 너비(Width) 체크
+        # -----------------------------------------------------------
+        # 사용자의 화면 폭을 실시간으로 가져오는 컴포넌트 뷰포트 설정
+        from streamlit_js_eval import streamlit_js_eval
+        screen_width = streamlit_js_eval(js_expressions="window.innerWidth", key="WIDTH_CHECK")
+
+        # 화면 너비를 가져오는 중이거나, 화면 폭이 768px 이하인 경우 (모바일)
+        if screen_width is not None and screen_width <= 768:
+            # 모바일 특화 레이아웃 적용
+            fig_all.update_traces(width=0.6)  # 막대 두껍게
+            fig_all.update_layout(
+                height=180,
+                margin=dict(l=10, r=5, t=30, b=10),
+                showlegend=False  # 모바일은 범례 숨김
+            )
+            fig_all.update_yaxes(tickfont=dict(size=11))
+        else:
+            # PC/태블릿 기본 레이아웃 유지
+            fig_all.update_layout(
+                height=250,
+                margin=dict(l=10, r=10, t=40, b=10),
+                showlegend=True   # PC는 범례 표시
+            )
         
-        fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
+
     st.markdown("---")
     # ------------------------------------------------------------------
     # 개별 프로젝트 세부 점검 영역
