@@ -178,7 +178,7 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
-            # [새 창 레이아웃] 화면 깜빡임 및 버튼 중복이 차단된 단독 일정 관리 전용 창
+            # [새 창 레이아웃] 화면 깜빡임 최소화 및 슬림 디자인이 반영된 일정 전용 창
             # ------------------------------------------------------------------
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
@@ -220,7 +220,30 @@ if df_sched is not None and df_check is not None:
             }
             day_events = mock_events.get(selected_day, {})
 
-            # 주소 이동 대신 렉 없이 내부 세션만 깜빡임 없이 즉시 반전시키는 반복 루프
+            # [스타일 보정 1] 컴포넌트 간 세로 빈 여백 마진 완벽 제거
+            st.markdown(
+                """
+                <style>
+                div[data-testid="column"]:nth-of-type(2) div.element-container {
+                    margin-top: 0px !important;
+                    margin-bottom: -6px !important;
+                    padding: 0px !important;
+                }
+                /* 일정 관리 버튼의 텍스트 정렬 및 크기 슬림하게 고정 */
+                div[data-testid="column"]:nth-of-type(2) button[key*="btn_"] {
+                    padding: 4px 12px !important;
+                    margin: 0px !important;
+                    width: 100% !important;
+                    border-radius: 5px !important;
+                    font-size: 13px !important;
+                    height: 34px !important; /* 세로 폭을 슬림하게 고정 */
+                    transition: none !important;
+                }
+                </style>
+                """, 
+                unsafe_allow_html=True
+            )
+
             for h_str in hours_list:
                 event_text = day_events.get(h_str, "일정 없음")
                 state_key = f"cal_status_{selected_day}_{h_str}"
@@ -235,7 +258,6 @@ if df_sched is not None and df_check is not None:
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
                 
-                # 상태별 폰트/배경 테마 분기 설정
                 if is_done:
                     bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
                 elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
@@ -243,31 +265,22 @@ if df_sched is not None and df_check is not None:
                 else:
                     bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
 
-                # [핵심 수정] element-container 기준 정밀 타깃 추적으로 가짜 버튼 복제 생성을 완벽 차단합니다.
+                # [스타일 보정 2] data-testid 속성을 통해 덮어씌워진 흰색을 뚫고 초록/빨강/회색 스킨 강제 적용
                 st.markdown(
                     f"""
                     <style>
-                    div[data-testid="column"]:nth-of-type(2) div.element-container:has(button[key="btn_{selected_day}_{h_str}"]) button {{
+                    button[data-testid*="stBaseButton"][key="btn_{selected_day}_{h_str}"] {{
                         background-color: {bg_c} !important;
                         color: {text_c} !important;
                         border: 1px solid {border_c} !important;
-                        justify-content: space-between !important;
-                        display: flex !important;
-                        padding: 6px 10px !important;
-                        margin-bottom: 4px !important;
-                        text-align: left !important;
-                        width: 100% !important;
-                        border-radius: 5px !important;
-                        font-size: 13px !important;
-                        height: auto !important;
                     }}
                     </style>
                     """,
                     unsafe_allow_html=True
                 )
 
-                # 버튼 클릭 시 주소창 새로고침 없이 즉시 내부 로직만 리런 유도
-                if st.button(f"[{h_str}] {event_text} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 [{status_lbl}]", key=f"btn_{selected_day}_{h_str}", use_container_width=True):
+                # 클릭 시 주소창 파라미터 갱신 없이 즉각 고속 리런 연동
+                if st.button(f"[{h_str}] {event_text} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 [{status_lbl}]", key=f"btn_{selected_day}_{h_str}", use_container_width=True):
                     st.session_state[state_key] = not st.session_state[state_key]
                     st.rerun()
 
