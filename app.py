@@ -55,14 +55,22 @@ if df_sched is not None and df_check is not None:
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
         
-        # 1. 세션 상태(Session State) 초기화 (메모 데이터 및 진행 상태 저장용)
+        # 1. 세션 상태 초기화
         if "todo_notes" not in st.session_state:
-            st.session_state.todo_notes = ["오늘의 주요 품질활동 메모", "", "", "", ""]
+            st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
-            st.session_state.todo_status = [False, False, False, False, False] # False: 미진행(빨간색), True: 진행(초록색)
+            st.session_state.todo_status = [True, False, False, False, False] # 예시 이미지와 동일하게 1번만 완료 세팅
 
-        # 2. 메모 입력 팝업 버튼 영역
-        # 버튼을 누르면 5개의 메모를 깔끔하게 적을 수 있는 입력창들이 나타납니다.
+        # 클릭 이벤트 처리 (쿼리 파라미터 방식을 활용해 순수 HTML 버튼 클릭 감지)
+        query_params = st.query_params
+        if "toggle_idx" in query_params:
+            clicked_idx = int(query_params["toggle_idx"])
+            st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
+            # 재실행 시 쿼리 파라미터 초기화하여 무한 루프 방지
+            st.query_params.clear()
+            st.rerun()
+
+        # 2. 메모 입력 영역 (세로 여백 최소화형 팝오버)
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
             new_notes = []
@@ -79,57 +87,48 @@ if df_sched is not None and df_check is not None:
                 st.success("메모가 대시보드에 반영되었습니다.")
                 st.rerun()
 
-        st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+        # 팝오버와 리스트 사이의 간격 최소화
+        st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 3. 터치식 상태 변경 투두 리스트 출력 영역
-        # 사용자가 리스트 항목을 클릭하면 색상이 초록 <-> 빨강으로 번갈아 바뀝니다.
+        # 3. HTML/CSS 기반 초박형 컴팩트 리스트 출력
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
-            
-            # 빈 칸은 화면에 깔끔하게 보이기 위해 기본 안내 문구로 대체합니다.
             if not current_note.strip():
                 current_note = f"할 일 {idx+1} (내용을 입력해 주세요)"
                 
-            # 진행 상태(True/False)에 따라 버튼 테두리와 글자색 스타일을 다르게 지정
             is_done = st.session_state.todo_status[idx]
             
-            if is_done:
-                # 진행 상태: 초록색 스킨
-                btn_label = f" 진행완료 : {current_note}"
-                btn_type = "secondary" # 스트림릿 기본 버튼 기본형 활용을 위한 분기
-            else:
-                # 미진행 상태: 빨간색 스킨
-                btn_label = f" 미진행 : {current_note}"
-                btn_type = "primary" # 스트림릿 강조형 버튼 (기본 빨간/주황 계열 효과 유도)
+            # 진행 여부에 따른 색상 및 문구 명확한 정의
+            status_text = "진행완료" if is_done else "미진행"
+            status_color = "#2E7D32" if is_done else "#D32F2F"  # 진한 초록 / 진한 빨강
+            bg_color = "#E8F5E9" if is_done else "#FFEBEE"      # 연한 초록 / 연한 빨강
+            border_color = "#A5D6A7" if is_done else "#EF9A9A"  # 테두리 색상
 
-            # 디자인을 입히기 위한 CSS 스타일을 개별 버튼 위에 주입
-            status_color = "#2E7D32" if is_done else "#D32F2F"
-            bg_color = "#E8F5E9" if is_done else "#FFEBEE"
-            
+            # Streamlit 버튼의 강제 스타일을 우회하고 세로 간격을 줄이기 위해 a 태그 형태의 커스텀 버튼 주입
             st.markdown(
                 f"""
-                <style>
-                div[data-testid="stButton"] button[key*="toggle_btn_{idx}"] {{
-                    background-color: {bg_color} !important;
-                    color: {status_color} !important;
-                    border: 2px solid {status_color} !important;
-                    text-align: left !important;
-                    font-weight: bold !important;
-                    width: 100% !important;
-                    display: block !important;
-                }}
-                </style>
+                <a href="?toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        margin-bottom: 4px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </a>
                 """,
                 unsafe_allow_html=True
             )
 
-            # 각 항목을 버튼으로 생성하여 클릭 시 상태가 반전되도록 구현
-            if st.button(btn_label, key=f"toggle_btn_{idx}", use_container_width=True):
-                st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
-                st.rerun()
-
-        # 하단 달력과의 겹침 현상을 방지하기 위한 명확한 하단 공백
-        st.markdown("<div style='margin-bottom: 30px;'></div>", unsafe_allow_html=True)
+        # 하단 달력 영역과의 최소 격리 여백
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
     with col_cal:
         today = pd.Timestamp.now().normalize()
