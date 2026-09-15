@@ -203,7 +203,6 @@ if df_sched is not None and df_check is not None:
                 """,
                 unsafe_allow_html=True
             )
-
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
@@ -214,6 +213,19 @@ if df_sched is not None and df_check is not None:
         if "view_schedule" in query_params:
             selected_day = int(query_params.get("view_schedule", current_day))
             
+            day_options = list(range(1, 31))
+            try:
+                default_idx = day_options.index(selected_day)
+            except:
+                default_idx = 14
+
+            chosen_day = st.selectbox("이동할 날짜 선택", day_options, index=default_idx, key="nav_day_selectbox")
+            if chosen_day != selected_day:
+                st.query_params.clear()
+                st.query_params["view_schedule"] = chosen_day
+                st.session_state["initialized_events"] = True
+                st.rerun()
+
             with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
                 st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
                 
@@ -231,22 +243,7 @@ if df_sched is not None and df_check is not None:
                 
                 if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
                     st.session_state[f"stored_events_{selected_day}"] = updated_events
-                    
-                    # [증발 차단 핵심] 작성한 모든 일정을 구글 배포 자동 시스템 연동 포맷 갱신 데이터프레임으로 변환
-                    records = []
-                    for d_idx in range(1, 31):
-                        d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
-                        for t_val, e_val in d_evs.items():
-                            if e_val.strip():
-                                records.append({"Day": d_idx, "Time": t_val, "Event": e_val})
-                    
-                    df_to_save = pd.DataFrame(records)
-                    st.session_state.df_cal_data = df_to_save
-                    
-                    # 구글 웹앱 매크로(Apps Script) URL 주소가 확보되어 있다면 하단에 다이렉트 POST 송신 연동이 가능합니다.
-                    # 현 구조에서는 세션 내 강제 홀딩 로직을 주입하여 st.rerun 시 강제 덮어쓰기를 일시 유예합니다.
                     st.session_state["initialized_events"] = True
-                    st.cache_data.clear()
                     st.success("시간별 품질활동 일정이 메모리에 고정되었습니다.")
                     st.rerun()
 
@@ -272,7 +269,6 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
-            # 출력용 타임라인도 06:00부터 23:00까지만 깔끔하게 떨어지도록 수정
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             
             current_hour_now = now_dt.hour
@@ -289,11 +285,11 @@ if df_sched is not None and df_check is not None:
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
                 st.session_state[state_key] = not st.session_state[state_key]
+                st.session_state["initialized_events"] = True 
                 st.query_params.clear()
                 st.query_params["view_schedule"] = selected_day
                 st.rerun()
 
-            # 독립된 레벨에서 타임라인 바가 딱 한 번만 그려지도록 제어
             for h_str in hours_list:
                 has_event = h_str in day_events
                 event_text = day_events.get(h_str, "일정 없음")
@@ -304,7 +300,7 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":")[0])
+                target_hour = int(h_str.split(":"))
                 target_absolute_mins = target_hour * 60
                 
                 if is_done:
@@ -341,6 +337,7 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
+
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
