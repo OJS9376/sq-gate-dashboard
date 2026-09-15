@@ -141,7 +141,6 @@ if df_sched is not None and df_check is not None:
                 st.rerun()
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
