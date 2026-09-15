@@ -48,17 +48,14 @@ if df_sched is not None and df_check is not None:
     # ------------------------------------------------------------------
     # 전 프로젝트 통합 달력형 타임라인 보기
     # ------------------------------------------------------------------
-        col_todo, col_cal = st.columns([1.8, 1.2])
+    col_todo, col_cal = st.columns([1.8, 1.2])
 
-    # [핵심 수정] 좌측 TO DO LIST와 우측 달력의 시작 높이를 상단(윗선)으로 강제 정렬하는 CSS
     st.markdown(
         """
         <style>
-        /* 좌우 컬럼을 감싸는 컨테이너를 상단 정렬로 고정 */
         div[data-testid="stHorizontalBlock"] {
             align-items: flex-start !important;
         }
-        /* 우측 달력 박스가 위에 딱 붙도록 상단 여백 제거 */
         div[data-testid="column"]:nth-of-type(2) {
             margin-top: 0px !important;
             padding-top: 0px !important;
