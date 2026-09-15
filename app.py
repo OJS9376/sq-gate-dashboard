@@ -231,7 +231,7 @@ if df_sched is not None and df_check is not None:
                         show_check,
                         column_config={
                             "상위 카테고리": st.column_config.TextColumn("상위 카테고리", disabled=True),
-                    
+                         },
                     edited_df = st.data_editor(
                         show_check,
                         column_config={
