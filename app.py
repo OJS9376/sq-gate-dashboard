@@ -67,9 +67,7 @@ if df_sched is not None and df_check is not None:
         unsafe_allow_html=True
     )
 
-    with col_todo:
-        st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
-        
+    with col_todo:        
         # 1. 세션 상태 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
