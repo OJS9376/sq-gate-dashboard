@@ -66,14 +66,36 @@ if df_sched is not None and df_check is not None:
 
     # 좌우 화면 분할 가동 (투두리스트 가중치 1.8 : 달력 가중치 1.2)
     col_todo, col_cal = st.columns([1.8, 1.2])
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stHorizontalBlock"] {
+            align-items: flex-start !important;
+        }
+        div[data-testid="column"]:nth-of-type(2) {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     with col_todo:        
-        # 할 일 목록 세션 변수 검증 및 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        # 메모 입력창 팝오버 배치
+        # [실시간 무렉 이벤트 처리] 주소창을 바꾸지 않는 백엔드 토글 로직
+        query_params = st.query_params
+        if "hidden_toggle_idx" in query_params:
+            clicked_idx = int(query_params["hidden_toggle_idx"])
+            st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
+            st.query_params.clear()
+            st.rerun()
+
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
             new_notes = []
@@ -92,22 +114,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # [수정 핵심] Streamlit의 고유 컴포넌트 뼈대 자체에 다이렉트로 스타일 주입하여 여백 차단 및 색상 복구
-        st.markdown(
-            """
-            <style>
-            /* 버튼들 사이의 불필요한 컨테이너 세로 공백 마진 제거 */
-            div[data-testid="column"]:nth-of-type(1) div.element-container {
-                margin-top: 0px !important;
-                margin-bottom: -4px !important;
-                padding: 0px !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # 주소창 변환 없이 즉시 토글되는 투두 리스트 출력 루프
+        # 과거의 마음에 드셨던 초박형 밀착 컴팩트 HTML 구조 출력
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -120,36 +127,34 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            # 버튼의 HTML 내부 data 속성을 직접 강제 타깃팅하여 무조건 스킨 반전 보장
+            # <a> 태그 클릭 시 페이지를 새로고침(이동)하지 않고, 스트림릿 내부 백엔드로 신호만 쏘아 보내 깜빡임을 제거합니다.
             st.markdown(
                 f"""
-                <style>
-                button[data-testid*="stBaseButton"][key="todo_btn_{idx}"] {{
-                    background-color: {bg_color} !important;
-                    color: {status_color} !important;
-                    border: 1px solid {border_color} !important;
-                    padding: 4px 12px !important;
-                    margin: 0px !important;
-                    text-align: center !important;
-                    display: block !important;
-                    width: 100% !important;
-                    border-radius: 6px !important;
-                    font-size: 14px !important;
-                    font-weight: bold !important;
-                    height: 34px !important; /* 버튼 자체의 세로 폭 슬림하게 고정 */
-                }}
-                </style>
+                <div style="cursor: pointer; display: block; margin-bottom: 4px;" onclick="
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('hidden_toggle_idx', '{idx}');
+                    window.parent.postMessage({{type: 'streamlit:set_query_params', query_params: url.search}}, '*');
+                ">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </div>
                 """,
                 unsafe_allow_html=True
             )
 
-            # 버튼 클릭 시 즉각적으로 상태가 반전되며 깜빡임 없이 리런됩니다.
-            if st.button(f"{status_text} : {current_note}", key=f"todo_btn_{idx}", use_container_width=True):
-                st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
-                st.rerun()
-
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-        
+
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
