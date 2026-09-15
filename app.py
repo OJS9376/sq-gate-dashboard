@@ -262,13 +262,22 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    try:
-                        API_URL = f"https://script.google.com/macros/s/AKfycbw6FOyGQqU-VO9rdQk5YaDzpBHRtjcW4Bp6tR_xznG2VRFOYEZHbDkHSuh9T1vFL1Q/exec"
-                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
+                    # [연동 점검 테스트 모드 가동]
+                    # 아래 주소의 "XXXXXXXXXXXXXX" 부분을 발급받으신 실제 구글 웹앱 URL 주소로 정확히 치환해 주세요!
+                    API_URL = "https://google.com"
+                    
+                    if "XXXXXXXXXXXXXX" in API_URL:
+                        st.error("오류: 코드 내부의 API_URL 주소가 기본 예시 상태입니다. Apps Script 웹앱 주소로 수정해 주세요.")
+                    else:
+                        try:
+                            res = requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=8)
+                            if res.status_code == 200:
+                                st.success("성공: 구글 스프레드시트 서버와 통신에 성공하여 정상 기록되었습니다.")
+                            else:
+                                st.error(f"실패: 구글 응답 코드는 정상이나 전송 에러가 발생했습니다. (상태 코드: {res.status_code})")
+                        except Exception as e:
+                            st.error(f"네트워크 통신 오류 발생 (주소가 틀렸거나 배포 설정 누락): {e}")
                         
-                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
                     st.rerun()
 
             st.markdown(
@@ -322,11 +331,13 @@ if df_sched is not None and df_check is not None:
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                try:
-                    API_URL = f"https://script.google.com/macros/s/AKfycbw6FOyGQqU-VO9rdQk5YaDzpBHRtjcW4Bp6tR_xznG2VRFOYEZHbDkHSuh9T1vFL1Q/exec"
-                    requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
-                except:
-                    pass
+                # 수동 상태 토글 시에도 동시 검증용 디버거 작동
+                API_URL = "https://google.com"
+                if "XXXXXXXXXXXXXX" not in API_URL:
+                    try:
+                        requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
+                    except:
+                        pass
                     
                 st.query_params.clear()
                 st.query_params["view_schedule"] = selected_day
