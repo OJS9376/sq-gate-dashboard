@@ -95,6 +95,8 @@ if df_sched is not None and df_check is not None:
 
     with col_todo:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
+        
+        # [달력 버그 해결 1] if-not 조건문을 주입하여 최초 진입 시 단 한 번만 9월로 초기화하고 이후로는 세션을 영구 보존합니다.
         if "cal_year" not in st.session_state:
             st.session_state.cal_year = now_dt.year
         if "cal_month" not in st.session_state:
@@ -109,6 +111,14 @@ if df_sched is not None and df_check is not None:
             st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"] = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if f"todo_status_{st.session_state.cal_month}_{current_sel_day}" not in st.session_state:
             st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"] = [True, False, False, False, False]
+
+        # [투두 토글 기능 부활] 클릭 신호를 정확히 역추적하여 진행완료 <-> 미진행 상태를 실시간 반전 처리합니다.
+        if "safe_toggle_idx" in query_params:
+            clicked_idx = int(query_params["safe_toggle_idx"])
+            st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][clicked_idx] = not st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][clicked_idx]
+            st.query_params.clear()
+            st.query_params["view_schedule"] = current_sel_day
+            st.rerun()
 
         with st.popover("우선 순위 입력하기", use_container_width=True):
             st.markdown("##### 오늘의 주요 우선순위 5개 관리")
@@ -140,9 +150,27 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            if st.button(f"{status_text} : {current_note}", key=f"todo_direct_btn_{idx}", use_container_width=True):
-                st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx] = not st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx]
-                st.rerun()
+            st.markdown(
+                f"""
+                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        margin-bottom: 4px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -195,6 +223,7 @@ if df_sched is not None and df_check is not None:
                 """,
                 unsafe_allow_html=True
             )
+
             
     with col_cal:
         import calendar
