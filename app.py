@@ -96,135 +96,102 @@ if df_sched is not None and df_check is not None:
     with col_todo:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         
-        # [달력 버그 해결 1] if-not 조건문을 주입하여 최초 진입 시 단 한 번만 9월로 초기화하고 이후로는 세션을 영구 보존합니다.
+        # 안전한 연도/월 세션 초기화
         if "cal_year" not in st.session_state:
             st.session_state.cal_year = now_dt.year
         if "cal_month" not in st.session_state:
             st.session_state.cal_month = now_dt.month
 
+        # 선택된 날짜 가져오기 (쿼리 파라미터가 없으면 오늘 날짜)
         query_params = st.query_params
         current_sel_day = now_dt.day
         if "view_schedule" in query_params:
-            current_sel_day = int(query_params.get("view_schedule", now_dt.day))
+            try:
+                current_sel_day = int(query_params.get("view_schedule", now_dt.day))
+            except:
+                current_sel_day = now_dt.day
 
-        if f"todo_notes_{st.session_state.cal_month}_{current_sel_day}" not in st.session_state:
-            st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"] = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
-        if f"todo_status_{st.session_state.cal_month}_{current_sel_day}" not in st.session_state:
-            st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"] = [True, False, False, False, False]
+        # 연도_월_일 기반의 고유한 세션 키 생성 (데이터 덮어쓰기 방지)
+        notes_key = f"todo_notes_{st.session_state.cal_year}_{st.session_state.cal_month}_{current_sel_day}"
+        status_key = f"todo_status_{st.session_state.cal_year}_{st.session_state.cal_month}_{current_sel_day}"
 
-        # [투두 토글 기능 부활] 클릭 신호를 정확히 역추적하여 진행완료 <-> 미진행 상태를 실시간 반전 처리합니다.
-        if "safe_toggle_idx" in query_params:
-            clicked_idx = int(query_params["safe_toggle_idx"])
-            st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][clicked_idx] = not st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][clicked_idx]
-            st.query_params.clear()
-            st.query_params["view_schedule"] = current_sel_day
-            st.rerun()
+        # 기본값 설정
+        if notes_key not in st.session_state:
+            st.session_state[notes_key] = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
+        if status_key not in st.session_state:
+            st.session_state[status_key] = [True, False, False, False, False]
 
+        st.markdown(f"#### 📅 {st.session_state.cal_month}월 {current_sel_day}일 To-Do")
+
+        # ----------------------------------------------------
+        # [개선] 주소창 링크 대신 네이티브 체크박스로 상태 토글 처리
+        # ----------------------------------------------------
+        updated_status = []
+        for idx in range(5):
+            task_name = st.session_state[notes_key][idx]
+            current_bool = st.session_state[status_key][idx]
+            
+            # 체크박스를 클릭하면 즉시 세션 상태 변동
+            is_checked = st.checkbox(
+                f"{idx+1}순위: {task_name}", 
+                value=current_bool, 
+                key=f"chk_{notes_key}_{idx}"
+            )
+            updated_status.append(is_checked)
+        
+        # 상태가 바뀌었다면 세션에 즉시 업데이트
+        if updated_status != st.session_state[status_key]:
+            st.session_state[status_key] = updated_status
+
+        # ----------------------------------------------------
+        # 우선 순위 편집 팝업 및 구글 시트 영구 저장
+        # ----------------------------------------------------
         with st.popover("우선 순위 입력하기", use_container_width=True):
             st.markdown("##### 오늘의 주요 우선순위 5개 관리")
             new_notes = []
             for idx in range(5):
                 note = st.text_input(
                     f"{idx+1}순위 활동", 
-                    value=st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"][idx], 
-                    key=f"edit_note_{idx}"
+                    value=st.session_state[notes_key][idx], 
+                    key=f"edit_note_{notes_key}_{idx}"
                 )
                 new_notes.append(note)
             
-            if st.button("저장 후 반영하기", use_container_width=True):
-                st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"] = new_notes
-                st.success("우선 순위가 대시보드에 반영되었습니다.")
+            if st.button("저장 후 구글시트 반영하기", use_container_width=True, key=f"btn_todo_save_{current_sel_day}"):
+                st.session_state[notes_key] = new_notes
+                
+                # 구글 시트에 전송할 데이터 구조 빌드
+                todo_records = []
+                # 현재 메모리에 등록된 모든 날짜의 To-Do 데이터를 모아서 전송
+                for m_idx in range(1, 13):
+                    for d_idx in range(1, 32):
+                        loop_notes_key = f"todo_notes_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                        loop_status_key = f"todo_status_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                        
+                        if loop_notes_key in st.session_state:
+                            for idx in range(5):
+                                todo_records.append({
+                                    "Year": int(st.session_state.cal_year),
+                                    "Month": int(m_idx),
+                                    "Day": int(d_idx),
+                                    "Task_Order": idx + 1,
+                                    "Task_Name": str(st.session_state[loop_notes_key][idx]),
+                                    "Is_Done": str(st.session_state[loop_status_key][idx])
+                                })
+                
+                df_todo_save = pd.DataFrame(todo_records)
+                
+                # 구글 앱스 스크립트 API 웹앱 URL (달력과 동일하거나 분기 처리된 URL 사용)
+                TODO_API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                try:
+                    # 안정적인 통신을 위해 JSON 형태로 전송
+                    requests.post(TODO_API_URL, json=df_todo_save.to_dict(orient="records"), timeout=5)
+                    st.success("To-Do 리스트가 구글 스프레드시트에 안전하게 영구 저장되었습니다.")
+                except Exception as e:
+                    st.error("구글 전송 중 오류가 발생했으나 로컬 세션에는 반영되었습니다.")
+                
                 st.rerun()
-
-        st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
-
-        for idx in range(5):
-            current_note = st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"][idx]
-            if not current_note.strip():
-                current_note = f"우선순위 {idx+1} (내용을 입력해 주세요)"
                 
-            is_done = st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx]
-            
-            status_text = "진행완료" if is_done else "미진행"
-            status_color = "#2E7D32" if is_done else "#D32F2F"
-            bg_color = "#E8F5E9" if is_done else "#FFEBEE"
-            border_color = "#A5D6A7" if is_done else "#EF9A9A"
-
-            st.markdown(
-                f"""
-                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
-                    <div style="
-                        background-color: {bg_color}; 
-                        color: {status_color}; 
-                        border: 1px solid {border_color}; 
-                        border-radius: 6px; 
-                        padding: 6px 12px; 
-                        margin-bottom: 4px; 
-                        font-weight: bold; 
-                        font-size: 14px; 
-                        text-align: center;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        {status_text} : {current_note}
-                    </div>
-                </a>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"<h4 style='color: #4A3AFF; margin-bottom: 10px;'>{st.session_state.cal_month}월 출장 및 중요 품질 일정</h4>", unsafe_allow_html=True)
-
-        monthly_highlights = []
-        for day_idx in range(1, 32):
-            day_events = st.session_state.get(f"stored_events_{st.session_state.cal_year}_{st.session_state.cal_month}_{day_idx}", {})
-            for h_str, event_text in day_events.items():
-                if "출장" in event_text or "중요" in event_text:
-                    monthly_highlights.append({
-                        "날짜": f"{st.session_state.cal_month}월 {day_idx}일",
-                        "시간": h_str,
-                        "내용": event_text
-                    })
-
-        if monthly_highlights:
-            for item in monthly_highlights:
-                bg_highlight = "#FFFDE7" if "출장" in item["내용"] else "#FFF9C4"
-                border_highlight = "#FFF59D" if "출장" in item["내용"] else "#FFE082"
-                lbl_tag = "출장" if "출장" in item["내용"] else "중요"
-                
-                st.markdown(
-                    f"""
-                    <div style="
-                        background-color: {bg_highlight}; 
-                        color: #000000; 
-                        border: 1px solid {border_highlight}; 
-                        border-radius: 6px; 
-                        padding: 8px 12px; 
-                        margin-bottom: 4px; 
-                        font-size: 13px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        <span style="font-weight: bold;">[{item["날짜"]} {item["시간"]}] {item["내용"]}</span>
-                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); color: #000000; padding: 2px 6px; border-radius: 4px; font-weight: bold;">{lbl_tag}</span>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        else:
-            st.markdown(
-                f"""
-                <div style="background-color: #F8F9FA; color: #9E9E9E; border: 1px solid #E0E0E0; border-radius: 6px; padding: 20px; text-align: center; font-size: 13px;">
-                    등록된 {st.session_state.cal_month}월 출장 또는 중요 품질 일정이 없습니다.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            
     with col_cal:
         import calendar
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
