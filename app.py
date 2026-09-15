@@ -89,8 +89,8 @@ if df_sched is not None and df_check is not None:
                             
                             valid_categories = gate_check['Category'].dropna()
                             if not valid_categories.empty:
-                                # 대표 상위 카테고리 명칭과 Gate 번호 결합 (예: Q1_개발계획서 검토)
-                                category_name = f"Q{i}_{str(valid_categories.iloc[0]).strip()}"
+                                # [핵심 변경] <br> 태그를 넣어 Q1과 상위 카테고리 명이 줄바꿈되도록 조율
+                                category_name = f"Q{i}<br>[{str(valid_categories.iloc).strip()}]"
                         
                         all_projects_timeline.append({
                             "프로젝트": p_name,
@@ -145,12 +145,26 @@ if df_sched is not None and df_check is not None:
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
         
-        # [수정 핵심] 막대 내부 글자 가운데 정렬 및 글자가 막대보다 길 때 숨기지 않고 밖으로 빼기
+        # 오늘 기준 보기 범위 세팅 (앞뒤 여백 확보)
+        start_visible = today - pd.Timedelta(days=7)
+        end_visible = today + pd.Timedelta(days=35)
+        
+        # 가로축 날짜 포맷 한글 숫자형태(MM/DD)로 간소화
+        fig_all.update_xaxes(
+            type="date",
+            range=[start_visible, end_visible],
+            tickformat="%m/%d",
+            gridcolor="rgba(230, 230, 230, 0.5)"
+        )
+        
+        fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
+        fig_all.update_yaxes(autorange="reversed")
+        
+        # [수정 핵심] 막대가 좁으면 글자를 자동으로 막대 '밖'으로 밀어내어 가로로 이쁘게 눕히기
         fig_all.update_traces(
-            textposition="inside",       # 글자를 막대 안쪽으로 강제 배치
-            textfont=dict(size=12, color="black"), # 글자 크기와 색상 설정
-            insidetextanchor="middle",   # 막대 내부의 정확한 정가운데(중앙)에 글자 배치
-            cliponaxis=False             # 막대가 짧아도 글자가 잘리지 않게 방어
+            textposition="auto",         # 막대 폭이 넓으면 안쪽, 단거리L Q2처럼 좁으면 자동으로 '바깥'에 글자 배치
+            textfont=dict(size=11, color="black"), 
+            insidetextanchor="middle"    # 안쪽에 들어갈 때도 정중앙 배치
         )
         
         fig_all.update_layout(
@@ -159,7 +173,6 @@ if df_sched is not None and df_check is not None:
             margin=dict(l=10, r=10, t=20, b=20),
             title=None
         )
-
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
