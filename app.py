@@ -93,16 +93,22 @@ if df_sched is not None and df_check is not None:
         unsafe_allow_html=True
     )
 
-    with col_todo:        
-        if "todo_notes" not in st.session_state:
-            st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
-        if "todo_status" not in st.session_state:
-            st.session_state.todo_status = [True, False, False, False, False]
+    with col_todo:
+        now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
+        if "cal_year" not in st.session_state:
+            st.session_state.cal_year = now_dt.year
+        if "cal_month" not in st.session_state:
+            st.session_state.cal_month = now_dt.month
 
         query_params = st.query_params
-        current_sel_day = 15
+        current_sel_day = now_dt.day
         if "view_schedule" in query_params:
-            current_sel_day = int(query_params.get("view_schedule", 15))
+            current_sel_day = int(query_params.get("view_schedule", now_dt.day))
+
+        if f"todo_notes_{st.session_state.cal_month}_{current_sel_day}" not in st.session_state:
+            st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"] = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
+        if f"todo_status_{st.session_state.cal_month}_{current_sel_day}" not in st.session_state:
+            st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"] = [True, False, False, False, False]
 
         with st.popover("우선 순위 입력하기", use_container_width=True):
             st.markdown("##### 오늘의 주요 우선순위 5개 관리")
@@ -110,64 +116,45 @@ if df_sched is not None and df_check is not None:
             for idx in range(5):
                 note = st.text_input(
                     f"{idx+1}순위 활동", 
-                    value=st.session_state.todo_notes[idx], 
+                    value=st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"][idx], 
                     key=f"edit_note_{idx}"
                 )
                 new_notes.append(note)
             
             if st.button("저장 후 반영하기", use_container_width=True):
-                st.session_state.todo_notes = new_notes
+                st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"] = new_notes
                 st.success("우선 순위가 대시보드에 반영되었습니다.")
                 st.rerun()
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
         for idx in range(5):
-            current_note = st.session_state.todo_notes[idx]
+            current_note = st.session_state[f"todo_notes_{st.session_state.cal_month}_{current_sel_day}"][idx]
             if not current_note.strip():
                 current_note = f"우선순위 {idx+1} (내용을 입력해 주세요)"
                 
-            is_done = st.session_state.todo_status[idx]
+            is_done = st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx]
             
             status_text = "진행완료" if is_done else "미진행"
             status_color = "#2E7D32" if is_done else "#D32F2F"
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            st.markdown(
-                f"""
-                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
-                    <div style="
-                        background-color: {bg_color}; 
-                        color: {status_color}; 
-                        border: 1px solid {border_color}; 
-                        border-radius: 6px; 
-                        padding: 6px 12px; 
-                        margin-bottom: 4px; 
-                        font-weight: bold; 
-                        font-size: 14px; 
-                        text-align: center;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        {status_text} : {current_note}
-                    </div>
-                </a>
-                """,
-                unsafe_allow_html=True
-            )
+            if st.button(f"{status_text} : {current_note}", key=f"todo_direct_btn_{idx}", use_container_width=True):
+                st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx] = not st.session_state[f"todo_status_{st.session_state.cal_month}_{current_sel_day}"][idx]
+                st.rerun()
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 10px;'>월간 출장 및 중요 품질 일정</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color: #4A3AFF; margin-bottom: 10px;'>{st.session_state.cal_month}월 출장 및 중요 품질 일정</h4>", unsafe_allow_html=True)
 
         monthly_highlights = []
-        for day_idx in range(1, 31):
-            day_events = st.session_state.get(f"stored_events_{day_idx}", {})
+        for day_idx in range(1, 32):
+            day_events = st.session_state.get(f"stored_events_{st.session_state.cal_year}_{st.session_state.cal_month}_{day_idx}", {})
             for h_str, event_text in day_events.items():
                 if "출장" in event_text or "중요" in event_text:
                     monthly_highlights.append({
-                        "날짜": f"9월 {day_idx}일",
+                        "날짜": f"{st.session_state.cal_month}월 {day_idx}일",
                         "시간": h_str,
                         "내용": event_text
                     })
@@ -201,21 +188,22 @@ if df_sched is not None and df_check is not None:
                 )
         else:
             st.markdown(
-                """
+                f"""
                 <div style="background-color: #F8F9FA; color: #9E9E9E; border: 1px solid #E0E0E0; border-radius: 6px; padding: 20px; text-align: center; font-size: 13px;">
-                    등록된 월간 출장 또는 중요 품질 일정이 없습니다.
+                    등록된 {st.session_state.cal_month}월 출장 또는 중요 품질 일정이 없습니다.
                 </div>
                 """,
                 unsafe_allow_html=True
             )
             
     with col_cal:
+        import calendar
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         
         if "cal_year" not in st.session_state:
             st.session_state.cal_year = now_dt.year
         if "cal_month" not in st.session_state:
-            st.session_state.cal_month = 9
+            st.session_state.cal_month = now_dt.month
 
         query_params = st.query_params
         if "nav_month" in query_params:
@@ -233,17 +221,20 @@ if df_sched is not None and df_check is not None:
             st.query_params.clear()
             st.rerun()
 
-        month_names = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-        display_month_name = month_names[st.session_state.cal_month - 1]
+        display_month_name = f"{st.session_state.cal_month}월"
+
+        _, total_days_in_month = calendar.monthrange(st.session_state.cal_year, st.session_state.cal_month)
 
         if "view_schedule" in query_params:
             selected_day = int(query_params.get("view_schedule", now_dt.day))
+            if selected_day > total_days_in_month:
+                selected_day = total_days_in_month
             
-            day_options = list(range(1, 31))
+            day_options = list(range(1, total_days_in_month + 1))
             try:
                 default_idx = day_options.index(selected_day)
             except:
-                default_idx = 14
+                default_idx = 0
 
             chosen_day = st.selectbox("이동할 날짜 선택", day_options, index=default_idx, key="nav_day_selectbox")
             if chosen_day != selected_day:
@@ -251,36 +242,39 @@ if df_sched is not None and df_check is not None:
                 st.session_state["initialized_events"] = True
                 st.rerun()
 
-            with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
-                st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
+            with st.popover(f"{st.session_state.cal_month}월 {selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
+                st.markdown(f"##### {st.session_state.cal_month}월 {selected_day}일 시간대별 수행활동 편집")
                 hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
                 
-                if f"stored_events_{selected_day}" not in st.session_state:
-                    st.session_state[f"stored_events_{selected_day}"] = {}
+                state_evt_key = f"stored_events_{st.session_state.cal_year}_{st.session_state.cal_month}_{selected_day}"
+                if state_evt_key not in st.session_state:
+                    st.session_state[state_evt_key] = {}
                 
                 updated_events = {}
                 for h_str in hours_setup:
-                    existing_val = st.session_state[f"stored_events_{selected_day}"].get(h_str, "")
-                    user_input_event = st.text_input(f"{h_str} 일정", value=existing_val, key=f"input_ev_{selected_day}_{h_str}")
+                    existing_val = st.session_state[state_evt_key].get(h_str, "")
+                    user_input_event = st.text_input(f"{h_str} 일정", value=existing_val, key=f"input_ev_{st.session_state.cal_year}_{st.session_state.cal_month}_{selected_day}_{h_str}")
                     if user_input_event.strip():
                         updated_events[h_str] = user_input_event
                 
                 if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
-                    st.session_state[f"stored_events_{selected_day}"] = updated_events
+                    st.session_state[state_evt_key] = updated_events
                     st.session_state["initialized_events"] = True
                     
                     records = []
-                    for d_idx in range(1, 31):
-                        d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
-                        for t_val, e_val in d_evs.items():
-                            if e_val.strip():
-                                is_done_btn = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
-                                records.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_btn)})
+                    for m_idx in range(1, 13):
+                        for d_idx in range(1, 32):
+                            loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                            d_evs = st.session_state.get(loop_key, {})
+                            for t_val, e_val in d_evs.items():
+                                if e_val.strip():
+                                    is_done_btn = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+                                    records.append({"Year": st.session_state.cal_year, "Month": m_idx, "Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_btn)})
                     
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://google.com"
+                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                     try:
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                     except:
@@ -290,17 +284,19 @@ if df_sched is not None and df_check is not None:
 
             if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
                 records_main = []
-                for d_idx in range(1, 31):
-                    d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
-                    for t_val, e_val in d_evs.items():
-                        if e_val.strip():
-                            is_done_main = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
-                            records_main.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_main)})
+                for m_idx in range(1, 13):
+                    for d_idx in range(1, 32):
+                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                        d_evs = st.session_state.get(loop_key, {})
+                        for t_val, e_val in d_evs.items():
+                            if e_val.strip():
+                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+                                records_main.append({"Year": st.session_state.cal_year, "Month": m_idx, "Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_main)})
                 
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://google.com"
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                 try:
                     requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                 except:
@@ -316,30 +312,33 @@ if df_sched is not None and df_check is not None:
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
 
-            if f"stored_events_{selected_day}" not in st.session_state:
-                st.session_state[f"stored_events_{selected_day}"] = {}
-            day_events = st.session_state[f"stored_events_{selected_day}"]
+            state_evt_key = f"stored_events_{st.session_state.cal_year}_{st.session_state.cal_month}_{selected_day}"
+            if state_evt_key not in st.session_state:
+                st.session_state[state_evt_key] = {}
+            day_events = st.session_state[state_evt_key]
 
             if "cal_toggle_hour" in query_params:
                 t_hour = query_params["cal_toggle_hour"]
-                state_key = f"cal_status_{selected_day}_{t_hour}"
+                state_key = f"cal_status_{st.session_state.cal_year}_{st.session_state.cal_month}_{selected_day}_{t_hour}"
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
                 st.session_state[state_key] = not st.session_state[state_key]
                 st.session_state["initialized_events"] = True 
                 
                 records_toggle = []
-                for d_idx in range(1, 31):
-                    d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
-                    for t_val, e_val in d_evs.items():
-                        if e_val.strip():
-                            is_done_tg = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
-                            records_toggle.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_tg)})
+                for m_idx in range(1, 13):
+                    for d_idx in range(1, 32):
+                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                        d_evs = st.session_state.get(loop_key, {})
+                        for t_val, e_val in d_evs.items():
+                            if e_val.strip():
+                                is_done_tg = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+                                records_toggle.append({"Year": st.session_state.cal_year, "Month": m_idx, "Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_tg)})
                 
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                API_URL = "https://google.com"
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                 try:
                     requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
                 except:
@@ -351,7 +350,7 @@ if df_sched is not None and df_check is not None:
             for h_str in hours_list:
                 has_event = h_str in day_events
                 event_text = day_events.get(h_str, "일정 없음")
-                state_key = f"cal_status_{selected_day}_{h_str}"
+                state_key = f"cal_status_{st.session_state.cal_year}_{st.session_state.cal_month}_{selected_day}_{h_str}"
                 
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
@@ -361,7 +360,7 @@ if df_sched is not None and df_check is not None:
                 
                 if is_done:
                     bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
-                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
+                elif selected_day == now_dt.day and st.session_state.cal_month == now_dt.month and target_absolute_mins < now_absolute_mins:
                     bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
                 else:
                     if has_event:
@@ -393,10 +392,9 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
-            import calendar
-
             def check_special_day(d):
-                d_evs = st.session_state.get(f"stored_events_{d}", {})
+                loop_key = f"stored_events_{st.session_state.cal_year}_{st.session_state.cal_month}_{d}"
+                d_evs = st.session_state.get(loop_key, {})
                 return any("출장" in txt or "중요" in txt for txt in d_evs.values())
 
             cal_obj = calendar.Calendar(firstweekday=6)
