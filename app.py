@@ -156,7 +156,41 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             selected_day = int(query_params.get("view_schedule", current_day))
-            
+
+            day_options = list(range(1, 31))
+            try:
+                default_idx = day_options.index(selected_day)
+            except:
+                default_idx = 14
+
+            # 사용자가 메인 화면에 나가지 않고 여기서 날짜를 바꾸면 즉시 주소창 파라미터를 갱신하여 새 창을 유지합니다.
+            chosen_day = st.selectbox("이동할 날짜 선택", day_options, index=default_idx, key="nav_day_selectbox")
+            if chosen_day != selected_day:
+                st.query_params.clear()
+                st.query_params["view_schedule"] = chosen_day
+                st.rerun()
+
+            st.markdown(
+                """
+                <a href="?" target="_self" style="text-decoration:none; display:block;">
+                    <div style="
+                        background-color: #FFFFFF; 
+                        color: #000000; 
+                        text-align: center; 
+                        padding: 6px; 
+                        border-radius: 6px; 
+                        margin-bottom: 15px; 
+                        font-size: 13px; 
+                        font-weight: bold;
+                        border: 1px solid #CCCCCC;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        메인 대시보드로 돌아가기
+                    </div>
+                </a>
+                """, 
+                unsafe_allow_html=True
+            )
             with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
                 st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
                 
