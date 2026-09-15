@@ -165,7 +165,7 @@ if df_sched is not None and df_check is not None:
         for day_idx in range(1, 31):
             day_events = st.session_state.get(f"stored_events_{day_idx}", {})
             for h_str, event_text in day_events.items():
-                if "출장" in event_text or "중요" in event_text or "회의" in event_text:
+                if "출장" in event_text or "중요" in event_text:
                     monthly_highlights.append({
                         "날짜": f"9월 {day_idx}일",
                         "시간": h_str,
@@ -174,9 +174,10 @@ if df_sched is not None and df_check is not None:
 
         if monthly_highlights:
             for item in monthly_highlights:
-                bg_highlight = "#FFFDE7" if "출장" in item["내용"] else "#F5F5F5"
-                text_highlight = "#F57F17" if "출장" in item["내용"] else "#616161"
-                border_highlight = "#FFF59D" if "출장" in item["내용"] else "#E0E0E0"
+                bg_highlight = "#FFFDE7" if "출장" in item["내용"] else "#FFF9C4"
+                text_highlight = "#F57F17" if "출장" in item["내용"] else "#E65100"
+                border_highlight = "#FFF59D" if "출장" in item["내용"] else "#FFE082"
+                lbl_tag = "출장" if "출장" in item["내용"] else "중요"
                 
                 st.markdown(
                     f"""
@@ -194,7 +195,7 @@ if df_sched is not None and df_check is not None:
                         box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
                     ">
                         <span style="font-weight: bold;">[{item["날짜"]} {item["시간"]}] {item["내용"]}</span>
-                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.4); padding: 2px 6px; border-radius: 4px; font-weight: normal;">품질활동</span>
+                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); padding: 2px 6px; border-radius: 4px; font-weight: bold;">{lbl_tag}</span>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -211,13 +212,33 @@ if df_sched is not None and df_check is not None:
 
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
-        current_year = now_dt.year
-        current_day = now_dt.day
+        
+        if "cal_year" not in st.session_state:
+            st.session_state.cal_year = now_dt.year
+        if "cal_month" not in st.session_state:
+            st.session_state.cal_month = 9
 
         query_params = st.query_params
-        
+        if "nav_month" in query_params:
+            direction = query_params["nav_month"]
+            if direction == "prev":
+                st.session_state.cal_month -= 1
+                if st.session_state.cal_month < 1:
+                    st.session_state.cal_month = 12
+                    st.session_state.cal_year -= 1
+            elif direction == "next":
+                st.session_state.cal_month += 1
+                if st.session_state.cal_month > 12:
+                    st.session_state.cal_month = 1
+                    st.session_state.cal_year += 1
+            st.query_params.clear()
+            st.rerun()
+
+        month_names = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+        display_month_name = month_names[st.session_state.cal_month - 1]
+
         if "view_schedule" in query_params:
-            selected_day = int(query_params.get("view_schedule", current_day))
+            selected_day = int(query_params.get("view_schedule", now_dt.day))
             
             day_options = list(range(1, 31))
             try:
@@ -233,7 +254,6 @@ if df_sched is not None and df_check is not None:
 
             with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
                 st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
-                
                 hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
                 
                 if f"stored_events_{selected_day}" not in st.session_state:
@@ -261,12 +281,11 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                    API_URL = "https://google.com"
                     try:
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                     except:
                         pass
-                        
                     st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
                     st.rerun()
 
@@ -282,7 +301,7 @@ if df_sched is not None and df_check is not None:
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                API_URL = "https://google.com"
                 try:
                     requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                 except:
@@ -295,7 +314,6 @@ if df_sched is not None and df_check is not None:
                 st.rerun()
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
-            
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
@@ -323,12 +341,11 @@ if df_sched is not None and df_check is not None:
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                API_URL = "https://google.com"
                 try:
                     requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
                 except:
                     pass
-                    
                 if "cal_toggle_hour" in st.query_params:
                     del st.query_params["cal_toggle_hour"]
                 st.rerun()
@@ -340,10 +357,7 @@ if df_sched is not None and df_check is not None:
                 
                 if state_key not in st.session_state:
                     st.session_state[state_key] = False
-                    
                 is_done = st.session_state[state_key]
-                
-                # [교정 완료] 리스트 슬라이싱 [0]을 붙여 형변환 TypeError 오류를 해결했습니다.
                 target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 
@@ -381,14 +395,25 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
-
+           def get_day_style(d):
+                d_evs = st.session_state.get(f"stored_events_{d}", {})
+                is_special = any("출장" in txt or "중요" in txt for txt in d_evs.values())
+                
+                if d == now_dt.day and st.session_state.cal_month == now_dt.month:
+                if d == now_dt.day and st.session_state.cal_month == now_dt.month:
+                    return "background-color: #E8F5E9; border: 2px solid #2E7D32; border-radius: 4px; font-weight: bold;"
+                elif is_special:
+                    return "background-color: #FFFDE7; border: 1px solid #F57F17; border-radius: 4px; font-weight: bold;"
+                return ""
 
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
                             box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0;">
-                    <div style="font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px;">
-                        &lt;&lt; &lt; SEP, {current_year} &gt; &gt;&gt;
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px; padding: 0 10px;">
+                        <a href="?nav_month=prev" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&lt;</a>
+                        <span>{display_month_name}, {st.session_state.cal_year}</span>
+                        <a href="?nav_month=next" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&gt;</a>
                     </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <tr style="color: #666; font-weight: bold;">
@@ -396,46 +421,44 @@ if df_sched is not None and df_check is not None:
                         </tr>
                         <tr style="color: #444;">
                             <td></td><td></td>
-                            <td><a href="?view_schedule=1" target="_blank" style="text-decoration:none; color:#AAA;">1</a></td>
-                            <td><a href="?view_schedule=2" target="_blank" style="text-decoration:none; color:#AAA;">2</a></td>
-                            <td><a href="?view_schedule=3" target="_blank" style="text-decoration:none; color:#AAA;">3</a></td>
-                            <td><a href="?view_schedule=4" target="_blank" style="text-decoration:none; color:#AAA;">4</a></td>
-                            <td><a href="?view_schedule=5" target="_blank" style="text-decoration:none; color:#1E88E5;">5</a></td>
+                            <td style="{get_day_style(1)}"><a href="?view_schedule=1" target="_self" style="text-decoration:none; color:#AAA;">1</a></td>
+                            <td style="{get_day_style(2)}"><a href="?view_schedule=2" target="_self" style="text-decoration:none; color:#AAA;">2</a></td>
+                            <td style="{get_day_style(3)}"><a href="?view_schedule=3" target="_self" style="text-decoration:none; color:#AAA;">3</a></td>
+                            <td style="{get_day_style(4)}"><a href="?view_schedule=4" target="_self" style="text-decoration:none; color:#AAA;">4</a></td>
+                            <td style="{get_day_style(5)}"><a href="?view_schedule=5" target="_self" style="text-decoration:none; color:#1E88E5;">5</a></td>
                         </tr>
                         <tr style="color: #444;">
-                            <td><a href="?view_schedule=6" target="_blank" style="text-decoration:none; color:#E53935;">6</a></td>
-                            <td><a href="?view_schedule=7" target="_blank" style="text-decoration:none; color:#444;">7</a></td>
-                            <td><a href="?view_schedule=8" target="_blank" style="text-decoration:none; color:#444;">8</a></td>
-                            <td><a href="?view_schedule=9" target="_blank" style="text-decoration:none; color:#444;">9</a></td>
-                            <td><a href="?view_schedule=10" target="_blank" style="text-decoration:none; color:#444;">10</a></td>
-                            <td><a href="?view_schedule=11" target="_blank" style="text-decoration:none; color:#444;">11</a></td>
-                            <td><a href="?view_schedule=12" target="_blank" style="text-decoration:none; color:#1E88E5;">12</a></td>
+                            <td style="{get_day_style(6)}"><a href="?view_schedule=6" target="_self" style="text-decoration:none; color:#E53935;">6</a></td>
+                            <td style="{get_day_style(7)}"><a href="?view_schedule=7" target="_self" style="text-decoration:none; color:#444;">7</a></td>
+                            <td style="{get_day_style(8)}"><a href="?view_schedule=8" target="_self" style="text-decoration:none; color:#444;">8</a></td>
+                            <td style="{get_day_style(9)}"><a href="?view_schedule=9" target="_self" style="text-decoration:none; color:#444;">9</a></td>
+                            <td style="{get_day_style(10)}"><a href="?view_schedule=10" target="_self" style="text-decoration:none; color:#444;">10</a></td>
+                            <td style="{get_day_style(11)}"><a href="?view_schedule=11" target="_self" style="text-decoration:none; color:#444;">11</a></td>
+                            <td style="{get_day_style(12)}"><a href="?view_schedule=12" target="_self" style="text-decoration:none; color:#1E88E5;">12</a></td>
                         </tr>
                         <tr style="color: #444;">
-                            <td><a href="?view_schedule=13" target="_blank" style="text-decoration:none; color:#E53935;">13</a></td>
-                            <td><a href="?view_schedule=14" target="_blank" style="text-decoration:none; color:#444;">14</a></td>
-                            <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;">
-                                <a href="?view_schedule=15" target="_blank" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
-                            </td>
-                            <td><a href="?view_schedule=16" target="_blank" style="text-decoration:none; color:#444;">16</a></td>
-                            <td><a href="?view_schedule=17" target="_blank" style="text-decoration:none; color:#444;">17</a></td>
-                            <td><a href="?view_schedule=18" target="_blank" style="text-decoration:none; color:#444;">18</a></td>
-                            <td><a href="?view_schedule=19" target="_blank" style="text-decoration:none; color:#1E88E5;">19</a></td>
+                            <td style="{get_day_style(13)}"><a href="?view_schedule=13" target="_self" style="text-decoration:none; color:#E53935;">13</a></td>
+                            <td style="{get_day_style(14)}"><a href="?view_schedule=14" target="_self" style="text-decoration:none; color:#444;">14</a></td>
+                            <td style="{get_day_style(15)}"><a href="?view_schedule=15" target="_self" style="text-decoration:none; color:#2E7D32;">15</a></td>
+                            <td style="{get_day_style(16)}"><a href="?view_schedule=16" target="_self" style="text-decoration:none; color:#444;">16</a></td>
+                            <td style="{get_day_style(17)}"><a href="?view_schedule=17" target="_self" style="text-decoration:none; color:#444;">17</a></td>
+                            <td style="{get_day_style(18)}"><a href="?view_schedule=18" target="_self" style="text-decoration:none; color:#444;">18</a></td>
+                            <td style="{get_day_style(19)}"><a href="?view_schedule=19" target="_self" style="text-decoration:none; color:#1E88E5;">19</a></td>
                         </tr>
                         <tr style="color: #444;">
-                            <td><a href="?view_schedule=20" target="_blank" style="text-decoration:none; color:#E53935;">20</a></td>
-                            <td><a href="?view_schedule=21" target="_blank" style="text-decoration:none; color:#444;">21</a></td>
-                            <td><a href="?view_schedule=22" target="_blank" style="text-decoration:none; color:#444;">22</a></td>
-                            <td><a href="?view_schedule=23" target="_blank" style="text-decoration:none; color:#444;">23</a></td>
-                            <td><a href="?view_schedule=24" target="_blank" style="text-decoration:none; color:#444;">24</a></td>
-                            <td><a href="?view_schedule=25" target="_blank" style="text-decoration:none; color:#444;">25</a></td>
-                            <td><a href="?view_schedule=26" target="_blank" style="text-decoration:none; color:#1E88E5;">26</a></td>
+                            <td style="{get_day_style(20)}"><a href="?view_schedule=20" target="_self" style="text-decoration:none; color:#E53935;">20</a></td>
+                            <td style="{get_day_style(21)}"><a href="?view_schedule=21" target="_self" style="text-decoration:none; color:#444;">21</a></td>
+                            <td style="{get_day_style(22)}"><a href="?view_schedule=22" target="_self" style="text-decoration:none; color:#444;">22</a></td>
+                            <td style="{get_day_style(23)}"><a href="?view_schedule=23" target="_self" style="text-decoration:none; color:#444;">23</a></td>
+                            <td style="{get_day_style(24)}"><a href="?view_schedule=24" target="_self" style="text-decoration:none; color:#444;">24</a></td>
+                            <td style="{get_day_style(25)}"><a href="?view_schedule=25" target="_self" style="text-decoration:none; color:#444;">25</a></td>
+                            <td style="{get_day_style(26)}"><a href="?view_schedule=26" target="_self" style="text-decoration:none; color:#1E88E5;">26</a></td>
                         </tr>
                         <tr style="color: #444;">
-                            <td><a href="?view_schedule=27" target="_blank" style="text-decoration:none; color:#E53935;">27</a></td>
-                            <td><a href="?view_schedule=28" target="_blank" style="text-decoration:none; color:#444;">28</a></td>
-                            <td><a href="?view_schedule=29" target="_blank" style="text-decoration:none; color:#444;">29</a></td>
-                            <td><a href="?view_schedule=30" target="_blank" style="text-decoration:none; color:#444;">30</a></td>
+                            <td style="{get_day_style(27)}"><a href="?view_schedule=27" target="_self" style="text-decoration:none; color:#E53935;">27</a></td>
+                            <td style="{get_day_style(28)}"><a href="?view_schedule=28" target="_self" style="text-decoration:none; color:#444;">28</a></td>
+                            <td style="{get_day_style(29)}"><a href="?view_schedule=29" target="_self" style="text-decoration:none; color:#444;">29</a></td>
+                            <td style="{get_day_style(30)}"><a href="?view_schedule=30" target="_self" style="text-decoration:none; color:#444;">30</a></td>
                             <td></td><td></td><td></td>
                         </tr>
                     </table>
