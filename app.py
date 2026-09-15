@@ -112,7 +112,6 @@ if df_sched is not None and df_check is not None:
         )
         # HTML <b> 태그를 활용해 강제로 글자를 굵게(Bold) 지정하는 처리 추가
         fig_all.update_slices(textfont_size=12) 
-        
         fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
