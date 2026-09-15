@@ -135,7 +135,14 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
+            # 버튼 클릭 시 주소창 파라미터 이동 없이 즉각적으로 메모리 상태 반전 및 리런
+            if st.button(f"{status_text} : {current_note}", key=f"todo_btn_{idx}", use_container_width=True):
+                st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
+                st.rerun()
+
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+        
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
@@ -145,22 +152,12 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
-            # [새 창 레이아웃] 특정 날짜 클릭 시 오픈되는 단독 시간 관리 인터페이스
+            # [새 창 레이아웃] 화면 깜빡임이 차단된 단독 일정 관리 전용 창
             # ------------------------------------------------------------------
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
             
-            if "cal_toggle_hour" in query_params:
-                t_hour = query_params["cal_toggle_hour"]
-                state_key = f"cal_status_{selected_day}_{t_hour}"
-                if state_key not in st.session_state:
-                    st.session_state[state_key] = False
-                st.session_state[state_key] = not st.session_state[state_key]
-                st.query_params.clear()
-                st.query_params["view_schedule"] = selected_day
-                st.rerun()
-
-            # [수정 포인트 2] 흰색 배경에 검은색 글자로 스타일 전면 개편
+            # 메인 대시보드로 복귀하는 버튼 (흰색 배경 / 검은색 글자 유지)
             st.markdown(
                 """
                 <a href="?" target="_self" style="text-decoration:none;">
@@ -197,6 +194,25 @@ if df_sched is not None and df_check is not None:
             }
             day_events = mock_events.get(selected_day, {})
 
+            # 세로 여백 최소화를 위한 CSS 배치 스타일 정의
+            st.markdown(
+                """
+                <style>
+                div[data-testid="stButton"] button {
+                    padding: 6px 10px !important;
+                    margin-bottom: -10px !important;
+                    text-align: left !important;
+                    display: block !important;
+                    width: 100% !important;
+                    border-radius: 5px !important;
+                    font-size: 13px !important;
+                }
+                </style>
+                """, 
+                unsafe_allow_html=True
+            )
+
+            # 주소 이동 대신 렉 없이 내부 세션만 깜빡임 없이 즉시 반전시키는 반복 루프
             for h_str in hours_list:
                 event_text = day_events.get(h_str, "일정 없음")
                 state_key = f"cal_status_{selected_day}_{h_str}"
@@ -206,12 +222,12 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                # [수정 포인트 1] 리스트 슬라이싱 인덱스 0번을 붙여서 시(Hour) 문자열 정보만 정확히 파싱하도록 변경
                 target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
                 
+                # 상태별 폰트/배경 테마 분기 설정
                 if is_done:
                     bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
                 elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
@@ -219,17 +235,26 @@ if df_sched is not None and df_check is not None:
                 else:
                     bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
 
+                # 브라우저 주소를 바꾸지 않는 커스텀 스타일 입힌 무렉 버튼 생성
                 st.markdown(
                     f"""
-                    <a href="?view_schedule={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 4px;">
-                        <div style="display: flex; justify-content: space-between; background-color: {bg_c}; color: {text_c}; border: 1px solid {border_c}; border-radius: 5px; padding: 6px 10px; font-size: 13px;">
-                            <span style="font-weight: bold;">[{h_str}] {event_text}</span>
-                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 5px; border-radius:3px;">{status_lbl}</span>
-                        </div>
-                    </a>
+                    <style>
+                    div[data-testid="stButton"] button[key*="btn_{selected_day}_{h_str}"] {{
+                        background-color: {bg_c} !important;
+                        color: {text_c} !important;
+                        border: 1px solid {border_c} !important;
+                        justify-content: space-between !important;
+                        display: flex !important;
+                    }}
+                    </style>
                     """,
                     unsafe_allow_html=True
                 )
+
+                # 버튼 클릭 시 주소창 새로고침 없이 즉시 내부 로직만 리런 유도
+                if st.button(f"[{h_str}] {event_text} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 [{status_lbl}]", key=f"btn_{selected_day}_{h_str}", use_container_width=True):
+                    st.session_state[state_key] = not st.session_state[state_key]
+                    st.rerun()
         else:
             # ------------------------------------------------------------------
             # [기본 메인 화면] 평소 메인 화면 진입 시 노출되는 깔끔한 미니 달력 스킨
