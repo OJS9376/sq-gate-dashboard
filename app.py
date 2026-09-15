@@ -49,69 +49,31 @@ if df_sched is not None and df_check is not None:
     # ------------------------------------------------------------------
     st.markdown("### 전 프로젝트 통합 마일스톤 달력")
     st.caption("모든 프로젝트의 Gate별 마감 일정을 타임라인 달력 형태로 한눈에 비교합니다.")
-    # ------------------------------------------------------------------
-    # 모바일 입력창 짤림 방지 CSS 주입
-    # ------------------------------------------------------------------
-    st.markdown(
-        """
-        <style>
-        /* 데이터 에디터 내부 셀을 클릭했을 때 뜨는 팝업 입력창의 위치를 화면 안쪽으로 강제 고정 */
-        div[data-testid="stDataEditor"] [role="dialog"], 
-        div[data-testid="stDataEditor"] input {
-            margin-left: 20px !important;
-            left: 10px !important;
-        }
-        /* TO DO LIST 컨테이너 자체에 왼쪽 여백을 주어 짤림을 원천 차단 */
-        div[data-testid="column"]:nth-of-type(1) {
-            padding-left: 10px !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # 이 아래는 기존에 사용하시던 레이아웃 코드가 그대로 이어집니다.
+       
     col_todo, col_cal = st.columns([1.8, 1.2])
 
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
         
-        todo_data = pd.DataFrame([{"선택": False, "할 일 내용": ""} for _ in range(5)])
-        
-        st.data_editor(
-            todo_data,
-            column_config={
-                "선택": st.column_config.CheckboxColumn(label="", default=False, width=35), # 기존에 원하셨던 바짝 붙은 너비 유지
-                "할 일 내용": st.column_config.TextColumn(label="오늘의 주요 품질활동 메모", width="large")
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="top_todo_list_popup_fixed"
-        )
+        # 입력창이 화면 밖으로 절대 나가지 않는 모바일 전용 UI 구성
+        # 5개의 행을 가로로 정렬된 체크박스와 입력창으로 배치합니다.
+        for idx in range(5):
+            # 체크박스와 텍스트 입력창의 너비 비율을 밀착 정렬
+            t_col1, t_col2 = st.columns([0.15, 0.85])
+            
+            with t_col1:
+                # 체크박스를 왼쪽 끝에 배치
+                st.checkbox("", key=f"todo_check_{idx}", label_visibility="collapsed")
+                
+            with t_col2:
+                # 일반 텍스트 입력창을 배치하여 타이핑 시 절대 글자가 잘리지 않도록 구현
+                st.text_input(
+                    "", 
+                    placeholder="오늘의 주요 품질활동 메모" if idx == 0 else "",
+                    key=f"todo_text_{idx}",
+                    label_visibility="collapsed"
+                )
 
-
-    
-    col_todo, col_cal = st.columns([1.8, 1.2])
-
-    with col_todo:
-        st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
-        
-        todo_data = pd.DataFrame([{"선택": False, "할 일 내용": ""} for _ in range(5)])
-        
-        st.data_editor(
-            todo_data,
-            column_config={
-                # 체크박스 열이 너무 쪼그라들어 입력창을 침범하지 않도록 너비를 45로 살짝 늘립니다.
-                "선택": st.column_config.CheckboxColumn(label="", default=False, width=45),
-                # 메모 열의 텍스트가 왼쪽으로 밀리지 않도록 형식을 확실하게 지정합니다.
-                "할 일 내용": st.column_config.TextColumn(label="오늘의 주요 품질활동 메모", width="large")
-            },
-            hide_index=True,
-            use_container_width=True,
-            # 매번 새로운 입력 시 고유 키를 보장합니다.
-            key="top_todo_list_mobile_fixed"
-        )
-        
     with col_cal:
         today = pd.Timestamp.now().normalize()
         current_year = today.year
