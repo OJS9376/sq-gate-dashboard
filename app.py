@@ -50,7 +50,7 @@ if df_sched is not None and df_check is not None:
         df_check['Category'] = df_check['Category'].ffill()
 
     # ------------------------------------------------------------------
-    # [시인성 업그레이드] 전 프로젝트 통합 달력형 타임라인 보기
+    # 전 프로젝트 통합 달력형 타임라인 보기
     # ------------------------------------------------------------------
     st.markdown("### 전 프로젝트 통합 마일스톤 달력")
     st.caption("모든 프로젝트의 Gate별 마감 일정을 타임라인 달력 형태로 한눈에 비교합니다.")
@@ -102,25 +102,9 @@ if df_sched is not None and df_check is not None:
             title="프로젝트별 품질 활동 일정 전체 비교",
             color_discrete_sequence=px.colors.qualitative.Safe
         )
-        
-        # 오늘 기준으로 정확히 가로축 45일 범위 고정 세팅
-        start_visible = today - pd.Timedelta(days=5)
-        end_visible = today + pd.Timedelta(days=40)
-        
-        # [시인성 핵심 옵션 적용] 하루 단위 칸 쪼개기 및 한글 월/일 표기 전환
-        fig_all.update_xaxes(
-            type="date",
-            range=[start_visible, end_visible],
-            dtick=86400000,  # 1일을 밀리초로 환산하여 하루 단위 그리드선 강제 생성
-            tickformat="%m월 %d일",  # 가로축 날짜 형식을 한글 '월 일' 형태로 고정 (Sep/Oct 제거)
-            gridcolor="rgba(200, 200, 200, 0.4)",  # 세로 격자 그리드선을 연한 회색으로 시각화
-            gridwidth=1
-        )
-        
-        # 오늘 날짜를 관통하는 빨간색 기준선 설정
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
-        fig_all.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
+        fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
@@ -143,7 +127,7 @@ if df_sched is not None and df_check is not None:
         if 'Owner' in p_rows.columns:
             valid_owners = p_rows['Owner'].dropna()
             if not valid_owners.empty:
-                owner_info = str(valid_owners.iloc)
+                owner_info = str(valid_owners.iloc[0])
 
         timeline_data = []
 
@@ -156,8 +140,8 @@ if df_sched is not None and df_check is not None:
             dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
-                target_dt = pd.to_datetime(target_val.iloc).replace(tzinfo=None)
-                dead_dt = pd.to_datetime(dead_val.iloc).replace(tzinfo=None)
+                target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
+                dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
                 
                 gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
                 total_tasks = len(gate_check)
