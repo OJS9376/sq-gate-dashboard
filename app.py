@@ -55,44 +55,63 @@ if df_sched is not None and df_check is not None:
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
         
-        # [스타일 보정] 체크박스와 입력 영역의 여백을 완전히 없애고 밀착시키는 CSS
+        # [핵심 수정] 모바일 화면에서도 절대 줄바꿈 되지 않도록 고정하는 CSS 주입
         st.markdown(
             """
             <style>
-            div[data-testid="stHorizontalBlock"] {
+            /* 전체 가로 정렬 컨테이너 세팅 */
+            .mobile-todo-row {
+                display: flex !important;
+                flex-direction: row !important;
                 align-items: center !important;
-                gap: 0px !important;
+                width: 100% !important;
+                margin-bottom: 8px !important; /* 컴포넌트 간 간격을 줄여 달력 침범 방지 */
             }
-            div[data-testid="column"] {
-                padding: 0px !important;
-                margin: 0px !important;
+            /* 체크박스 영역 고정 너비 */
+            .todo-checkbox-area {
+                flex: 0 0 35px !important;
+                display: flex !important;
+                justify-content: center !important;
             }
-            /* 입력창 하단의 불필요한 공백 제거 */
-            .stTextInput {
-                margin-bottom: -10px;
+            /* 입력창 영역 자동 꽉 채우기 */
+            .todo-input-area {
+                flex: 1 1 auto !important;
+                width: 100% !important;
+            }
+            /* 입력창 내부 불필요한 기본 여백 최소화 */
+            .todo-input-area div[data-testid="stTextInput"] {
+                margin-top: 0px !important;
+                margin-bottom: 0px !important;
             }
             </style>
             """,
             unsafe_allow_html=True
         )
         
-        # 5개의 행을 강제로 한 줄 밀착 레이아웃으로 배치
+        # 5개의 행을 가로 Flexbox 구조 안으로 격리 배치
         for idx in range(5):
-            # 두 열 사이의 너비를 극단적으로 밀착 (체크박스 영역 8%, 입력창 영역 92%)
-            t_col1, t_col2 = st.columns([0.08, 0.92])
+            # 외부 div 태그를 이용하여 가로 한 줄 레이아웃을 강제 고정합니다.
+            st.markdown(f'<div class="mobile-todo-row">', unsafe_allow_html=True)
             
-            with t_col1:
-                # 체크박스 배치 (레이블 숨김)
-                st.checkbox("", key=f"todo_check_fixed_{idx}", label_visibility="collapsed")
-                
-            with t_col2:
-                # 입력창 배치 (레이블 숨김)
-                st.text_input(
-                    "", 
-                    placeholder="오늘의 주요 품질활동 메모" if idx == 0 else "",
-                    key=f"todo_text_fixed_{idx}",
-                    label_visibility="collapsed"
-                )
+            # 1. 체크박스 영역
+            st.markdown('<div class="todo-checkbox-area">', unsafe_allow_html=True)
+            st.checkbox("", key=f"todo_html_check_{idx}", label_visibility="collapsed")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 2. 텍스트 입력창 영역
+            st.markdown('<div class="todo-input-area">', unsafe_allow_html=True)
+            st.text_input(
+                "", 
+                placeholder="오늘의 주요 품질활동 메모" if idx == 0 else "",
+                key=f"todo_html_text_{idx}",
+                label_visibility="collapsed"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        # 모든 To Do List가 끝난 후 달력과의 사이에 명확한 간격을 두어 겹침 현상을 방지합니다.
+        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
 
     with col_cal:
         today = pd.Timestamp.now().normalize()
