@@ -23,7 +23,7 @@ def load_data():
             try:
                 df_cal_saved = pd.read_excel(excel_file, sheet_name="Schedules", engine='openpyxl')
             except:
-                df_cal_saved = pd.DataFrame(columns=["Day", "Time", "Event", "Is_Done"])
+                df_cal_saved = pd.DataFrame(columns=["Year", "Month", "Day", "Time", "Event", "Is_Done"])
                 
             return df_sched, df_check, df_cal_saved
         else:
@@ -47,31 +47,48 @@ else:
 if df_sched is not None and df_check is not None:
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
-    if df_cal_saved is not None and not df_cal_saved.empty:
-        df_cal_saved.columns = df_cal_saved.columns.str.strip()
+    if df_cal_saved_data := st.session_state.get("df_cal_data", df_cal_saved) is not None:
+        if not df_cal_saved.empty:
+            df_cal_saved.columns = df_cal_saved.columns.str.strip()
     
     df_check['Project'] = df_check['Project'].ffill()
     df_check['Gate'] = df_check['Gate'].ffill()
     if 'Category' in df_check.columns:
         df_check['Category'] = df_check['Category'].ffill()
 
+    now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
+    
+    if "cal_year" not in st.session_state:
+        st.session_state.cal_year = now_dt.year
+    if "cal_month" not in st.session_state:
+        st.session_state.cal_month = now_dt.month
+
     if "initialized_events" not in st.session_state:
-        for d in range(1, 31):
-            st.session_state[f"stored_events_{d}"] = {}
-            hours_list_init = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
-            for h_str in hours_list_init:
-                st.session_state[f"cal_status_{d}_{h_str}"] = False
+        for m in range(1, 13):
+            for d in range(1, 32):
+                st.session_state[f"stored_events_{st.session_state.cal_year}_{m}_{d}"] = {}
+                hours_list_init = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
+                for h_str in hours_list_init:
+                    st.session_state[f"cal_status_{st.session_state.cal_year}_{m}_{d}_{h_str}"] = False
         
         if df_cal_saved is not None and not df_cal_saved.empty:
             for _, row in df_cal_saved.iterrows():
                 try:
+                    y_val = int(row.get("Year", st.session_state.cal_year))
+                    m_val = int(row.get("Month", st.session_state.cal_month))
                     d_val = int(row["Day"])
                     t_val = str(row["Time"]).strip()
                     e_val = str(row["Event"]).strip()
-                    done_val = str(row["Is_Done"]).strip() == "True"
-                    if d_val in range(1, 31) and t_val:
-                        st.session_state[f"stored_events_{d_val}"][t_val] = e_val
-                        st.session_state[f"cal_status_{d_val}_{t_val}"] = done_val
+                    done_val = str(row.get("Is_Done", "False")).strip() == "True"
+                    
+                    state_evt_key = f"stored_events_{y_val}_{m_val}_{d_val}"
+                    state_status_key = f"cal_status_{y_val}_{m_val}_{d_val}_{t_val}"
+                    
+                    if t_val:
+                        if state_evt_key not in st.session_state:
+                            st.session_state[state_evt_key] = {}
+                        st.session_state[state_evt_key][t_val] = e_val
+                        st.session_state[state_status_key] = done_val
                 except:
                     pass
         st.session_state["initialized_events"] = True
