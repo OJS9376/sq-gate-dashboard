@@ -281,7 +281,7 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://google.com"
+                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                     try:
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                     except:
@@ -301,7 +301,7 @@ if df_sched is not None and df_check is not None:
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://google.com"
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                 try:
                     requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                 except:
