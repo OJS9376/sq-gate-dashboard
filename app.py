@@ -9,17 +9,12 @@ st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
-URL_SCHED = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Project_Schedule"
-URL_CHECK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Checklist"
-
 
 @st.cache_data(ttl=5)
 def load_data():
     try:
-        # urlopen 대신 가장 안정적인 requests 라이브러리를 사용해 데이터를 바이트 형태로 먼저 가져옵니다.
         response = requests.get(URL_BASE, timeout=10)
         if response.status_code == 200:
-            # 다운로드한 데이터를 파일 형태로 메모리에 올려 openpyxl로 읽어들입니다.
             excel_file = io.BytesIO(response.content)
             df_sched = pd.read_excel(excel_file, sheet_name="Project_Schedule", engine='openpyxl')
             df_check = pd.read_excel(excel_file, sheet_name="Checklist", engine='openpyxl')
@@ -104,13 +99,26 @@ if df_sched is not None and df_check is not None:
         )
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
+        
+        # [기능 1번 반영] 막대 그래프 내부 텍스트 가운데 정렬, 하얗고 굵게 변경
+        fig_all.update_traces(
+            textposition="inside",          # 글자를 막대 안쪽(가운데)으로 위치 조절
+            insidetextanchor="middle",      # 내부 텍스트 앵커를 정중앙으로 설정
+            textfont=dict(
+                color="white",              # 글자색 하얗게
+                size=12,
+                family="Arial-Bold"         # 굵은 글씨체 적용 (또는 아래의 별도 스타일 지정 방식을 따름)
+            )
+        )
+        # HTML <b> 태그를 활용해 강제로 글자를 굵게(Bold) 지정하는 처리 추가
+        fig_all.update_slices(textfont_size=12) 
+        
         fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
 
     st.markdown("---")
-
     # ------------------------------------------------------------------
     # 개별 프로젝트 세부 점검 영역
     # ------------------------------------------------------------------
@@ -160,7 +168,8 @@ if df_sched is not None and df_check is not None:
                     d_day_str = "D-Day (오늘마감)"
                 
                 timeline_data.append({
-                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day
+                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day,
+                    "프로젝트": selected_project  # 개별 플로팅용 키 추가
                 })
 
         if timeline_data:
@@ -172,6 +181,36 @@ if df_sched is not None and df_check is not None:
             with col_info2:
                 st.metric("선택 프로젝트 종합 진척률", f"{int(rdf['Progress'].mean())}%")
             
+            # [기능 2번 추가] 선택한 개별 프로젝트의 전용 타임라인 달력 표시 영역
+            st.markdown(f"##### 📅 {selected_project} 개별 마일스톤 일정 열람")
+            fig_single = px.timeline(
+                rdf,
+                x_start="Start",
+                x_end="End",
+                y="Gate",
+                color="Gate",
+                text="Gate",
+                hover_data=["Progress", "D-Day"],
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            fig_single.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
+            fig_single.update_yaxes(autorange="reversed")
+            
+            # [기능 1번 적용] 개별 그래프 내부 글자 정렬 및 흰색/굵게 스타일링
+            fig_single.update_traces(
+                textposition="inside",
+                insidetextanchor="middle",
+                texttemplate="<b>%{text}</b>",  # HTML <b> 태그로 텍스트를 강제로 굵게 만듦
+                textfont=dict(
+                    color="white",
+                    size=13
+                )
+            )
+            fig_single.update_layout(height=180, margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
+            st.plotly_chart(fig_single, use_container_width=True, config={'displayModeBar': False})
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
             col_left, col_right = st.columns(2)
             
             with col_left:
