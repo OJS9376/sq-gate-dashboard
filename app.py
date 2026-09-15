@@ -69,7 +69,8 @@ if df_sched is not None and df_check is not None:
         )
 
     with col_cal:
-        # 현재 연도와 월 자동 계산 (이미지 기준 2026년 9월 예시 데이터 포함)
+        # [오류 해결] today 변수를 이 블록 안에서 명시적으로 한 번 더 선언해 줍니다.
+        today = pd.Timestamp.now().normalize()
         current_year = today.year
         current_month = today.month
         
