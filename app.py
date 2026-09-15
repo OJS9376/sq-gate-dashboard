@@ -6,6 +6,7 @@ import io
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
+
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
@@ -129,6 +130,36 @@ if df_sched is not None and df_check is not None:
         fig_all.update_layout(height=280, margin=dict(l=10, r=10, t=40, b=10))
         # 텍스트가 막대 안팎에 깔끔하게 안착하도록 설정
         fig_all.update_traces(textposition="inside")
+        # 오늘 기준 보기 범위 세팅 (앞뒤 여백 확보)
+        start_visible = today - pd.Timedelta(days=7)
+        end_visible = today + pd.Timedelta(days=35)
+        
+        # 가로축 날짜 포맷 한글 숫자형태(MM/DD)로 간소화
+        fig_all.update_xaxes(
+            type="date",
+            range=[start_visible, end_visible],
+            tickformat="%m/%d",
+            gridcolor="rgba(230, 230, 230, 0.5)"
+        )
+        
+        fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
+        fig_all.update_yaxes(autorange="reversed")
+        
+        # [수정 핵심] 막대 내부 글자 가운데 정렬 및 글자가 막대보다 길 때 숨기지 않고 밖으로 빼기
+        fig_all.update_traces(
+            textposition="inside",       # 글자를 막대 안쪽으로 강제 배치
+            textfont=dict(size=12, color="black"), # 글자 크기와 색상 설정
+            insidetextanchor="middle",   # 막대 내부의 정확한 정가운데(중앙)에 글자 배치
+            cliponaxis=False             # 막대가 짧아도 글자가 잘리지 않게 방어
+        )
+        
+        fig_all.update_layout(
+            showlegend=True,
+            height=250, 
+            margin=dict(l=10, r=10, t=20, b=20),
+            title=None
+        )
+
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
