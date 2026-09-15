@@ -229,6 +229,7 @@ if df_sched is not None and df_check is not None:
         import calendar
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         
+        # [달력 가둠 버그 해결] 2부에서도 초기화 코드를 걷어내고 세션 변수를 철저히 유지합니다.
         if "cal_year" not in st.session_state:
             st.session_state.cal_year = now_dt.year
         if "cal_month" not in st.session_state:
