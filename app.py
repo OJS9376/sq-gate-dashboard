@@ -77,30 +77,6 @@ if df_sched is not None and df_check is not None:
             margin-top: 0px !important;
             padding-top: 0px !important;
         }
-        /* 뚱뚱한 스트림릿 버튼 여백을 제로로 만들고 투명하게 만들어 디자인 뒤로 숨깁니다 */
-        div[data-testid="column"]:nth-of-type(1) div.element-container {
-            margin-top: -38px !important; /* HTML 상자 위로 정확히 겹치게 위로 올림 */
-            margin-bottom: 4px !important;
-            padding: 0px !important;
-        }
-        div[data-testid="column"]:nth-of-type(1) button {
-            background-color: transparent !important;
-            color: transparent !important;
-            border: none !important;
-            height: 34px !important;
-            width: 100% !important;
-            margin: 0px !important;
-            padding: 0px !important;
-            box-shadow: none !important;
-        }
-        div[data-testid="column"]:nth-of-type(1) button:hover, 
-        div[data-testid="column"]:nth-of-type(1) button:active, 
-        div[data-testid="column"]:nth-of-type(1) button:focus {
-            background-color: transparent !important;
-            color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }}
         </style>
         """,
         unsafe_allow_html=True
@@ -111,6 +87,14 @@ if df_sched is not None and df_check is not None:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
+
+        # [깜빡임 없는 정밀 백엔드 처리]
+        query_params = st.query_params
+        if "safe_toggle_idx" in query_params:
+            clicked_idx = int(query_params["safe_toggle_idx"])
+            st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
+            st.query_params.clear()
+            st.rerun()
 
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
@@ -130,7 +114,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 모양은 과거의 초박형 슬림 코드를 띄우고, 그 위에 투명 버튼을 얹어 이벤트를 처리합니다.
+        # 과거에 마음에 들어 하셨던 완벽한 슬림 핏 HTML 스킨 적용 영역
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -143,31 +127,28 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            # 1. 눈에 보이는 깔끔한 과거의 슬림 HTML 디자인 디자인 상자 배경 배치
+            # 웹 표준 샌드박스 통신 링크 기법을 적용하여 겹침 버그를 해결하고 정밀 터치 연동 보장
             st.markdown(
                 f"""
-                <div style="
-                    background-color: {bg_color}; 
-                    color: {status_color}; 
-                    border: 1px solid {border_color}; 
-                    border-radius: 6px; 
-                    padding: 6px 12px; 
-                    font-weight: bold; 
-                    font-size: 14px; 
-                    text-align: center;
-                    box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    height: 20px; /* 고정 높이 지정으로 정밀 매칭 */
-                ">
-                    {status_text} : {current_note}
-                </div>
+                <a href="?safe_toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        margin-bottom: 4px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </a>
                 """,
                 unsafe_allow_html=True
             )
-            
-            # 2. 그 위에 완벽하게 포개어지는 투명 순정 버튼 가동 (주소창 안 바뀌고 깜빡임 없음)
-            if st.button("", key=f"todo_click_btn_{idx}", use_container_width=True):
-                st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
-                st.rerun()
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
