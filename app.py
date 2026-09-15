@@ -65,14 +65,54 @@ if df_sched is not None and df_check is not None:
     )
 
     # 좌우 화면 분할 가동 (투두리스트 가중치 1.8 : 달력 가중치 1.2)
+    col_todo, col_cal = st.columns([1.8, 1.2])
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stHorizontalBlock"] {
+            align-items: flex-start !important;
+        }
+        div[data-testid="column"]:nth-of-type(2) {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    col_todo, col_cal = st.columns([1.8, 1.2])
+
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stHorizontalBlock"] {
+            align-items: flex-start !important;
+        }
+        div[data-testid="column"]:nth-of-type(2) {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     with col_todo:        
-        # 할 일 목록 세션 변수 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        # 메모 입력창 팝오버 배치
+        # [깜빡임 없는 정밀 백엔드 처리]
+        query_params = st.query_params
+        if "safe_toggle_idx" in query_params:
+            clicked_idx = int(query_params["safe_toggle_idx"])
+            st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
+            st.query_params.clear()
+            st.rerun()
+
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
             new_notes = []
@@ -91,35 +131,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 뚱뚱한 스트림릿 순정 버튼을 마음에 들어 하셨던 초박형 슬림 HTML 디자인 크기로 강제 압축하는 CSS
-        st.markdown(
-            """
-            <style>
-            /* 버튼들 사이의 스트림릿 고유 세로 공백 마진 강제 제거 */
-            div[data-testid="column"]:nth-of-type(1) div.element-container {
-                margin-top: 0px !important;
-                margin-bottom: -6px !important;
-                padding: 0px !important;
-            }
-            /* 스트림릿 순정 버튼의 높이, 패딩, 글자 두께를 과거 예뻤던 HTML 상자 느낌으로 리스킨 */
-            div[data-testid="column"]:nth-of-type(1) button[key*="fast_todo_btn_"] {
-                padding: 4px 12px !important;
-                margin: 0px !important;
-                text-align: center !important;
-                display: block !important;
-                width: 100% !important;
-                border-radius: 6px !important;
-                font-size: 14px !important;
-                font-weight: bold !important;
-                height: 34px !important; /* 세로 폭을 슬림하게 고정 */
-                transition: none !important; /* 모바일 애니메이션 딜레이 제거 */
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # 주소창을 바꾸지 않고 내부 메모리만 고속으로 반전시켜 껌벅임을 최소화하는 루프
+        # 과거에 마음에 들어 하셨던 완벽한 슬림 핏 HTML 스킨 적용 영역
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -132,24 +144,28 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            # 개별 버튼에 고유 키별로 색상을 강제 주입 (회색 칸 잔상 버그 방지)
+            # 웹 표준 샌드박스 통신 링크 기법을 적용하여 겹침 버그를 해결하고 정밀 터치 연동 보장
             st.markdown(
                 f"""
-                <style>
-                button[data-testid*="stBaseButton"][key="fast_todo_btn_{idx}"] {{
-                    background-color: {bg_color} !important;
-                    color: {status_color} !important;
-                    border: 1px solid {border_color} !important;
-                }}
-                </style>
+                <a href="?safe_toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        margin-bottom: 4px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </a>
                 """,
                 unsafe_allow_html=True
             )
-
-            # 주소 이동 링크 방식 대신, 클릭 시 백엔드 단에서 고속 리런을 수행하여 흰 화면 노출 시간을 극단적으로 줄입니다.
-            if st.button(f"{status_text} : {current_note}", key=f"fast_todo_btn_{idx}", use_container_width=True):
-                st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
-                st.rerun()
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
