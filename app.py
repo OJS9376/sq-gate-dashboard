@@ -227,7 +227,6 @@ if df_sched is not None and df_check is not None:
 
             chosen_day = st.selectbox("이동할 날짜 선택", day_options, index=default_idx, key="nav_day_selectbox")
             if chosen_day != selected_day:
-                st.query_params.clear()
                 st.query_params["view_schedule"] = chosen_day
                 st.session_state["initialized_events"] = True
                 st.rerun()
@@ -262,8 +261,8 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://google.com"
-                    if "XXXXXXXXXXXXXX" not in API_URL:
+                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/execv"
+                    if "AKfycbw6U" in API_URL:
                         try:
                             requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                         except:
@@ -272,7 +271,6 @@ if df_sched is not None and df_check is not None:
                     st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
                     st.rerun()
 
-            # [기능 교정 완료] 일반 링크 태그 대신, 누르면 백엔드 데이터 백업 후 주소창을 이동시키는 스트림릿 정품 세이브 버튼 체계 구축
             if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
                 records_main = []
                 for d_idx in range(1, 31):
@@ -285,14 +283,17 @@ if df_sched is not None and df_check is not None:
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://google.com"
-                if "XXXXXXXXXXXXXX" not in API_URL:
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                if "AKfycbw6U" in API_URL:
                     try:
                         requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                     except:
                         pass
                 
-                st.query_params.clear()
+                if "view_schedule" in st.query_params:
+                    del st.query_params["view_schedule"]
+                if "cal_toggle_hour" in st.query_params:
+                    del st.query_params["cal_toggle_hour"]
                 st.rerun()
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
@@ -324,15 +325,15 @@ if df_sched is not None and df_check is not None:
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                API_URL = "https://google.com"
-                if "XXXXXXXXXXXXXX" not in API_URL:
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                if "AKfycbw6U" in API_URL:
                     try:
                         requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
                     except:
                         pass
                     
-                st.query_params.clear()
-                st.query_params["view_schedule"] = selected_day
+                if "cal_toggle_hour" in st.query_params:
+                    del st.query_params["cal_toggle_hour"]
                 st.rerun()
 
             for h_str in hours_list:
