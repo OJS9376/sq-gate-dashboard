@@ -92,6 +92,21 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
+        # [수정 핵심] Streamlit의 고유 컴포넌트 뼈대 자체에 다이렉트로 스타일 주입하여 여백 차단 및 색상 복구
+        st.markdown(
+            """
+            <style>
+            /* 버튼들 사이의 불필요한 컨테이너 세로 공백 마진 제거 */
+            div[data-testid="column"]:nth-of-type(1) div.element-container {
+                margin-top: 0px !important;
+                margin-bottom: -4px !important;
+                padding: 0px !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
         # 주소창 변환 없이 즉시 토글되는 투두 리스트 출력 루프
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
@@ -105,24 +120,23 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            # [핵심 수정] nth-of-type 스타일 규칙을 적용하여 가짜 버튼 생성을 막고 단 하나의 순정 버튼만 지정 타겟팅합니다.
+            # 버튼의 HTML 내부 data 속성을 직접 강제 타깃팅하여 무조건 스킨 반전 보장
             st.markdown(
                 f"""
                 <style>
-                div[data-testid="column"]:nth-of-type(1) div.element-container:has(button[key="todo_btn_{idx}"]) button {{
+                button[data-testid*="stBaseButton"][key="todo_btn_{idx}"] {{
                     background-color: {bg_color} !important;
                     color: {status_color} !important;
                     border: 1px solid {border_color} !important;
-                    box-shadow: 0px 1px 2px rgba(0,0,0,0.05) !important;
-                    padding: 6px 12px !important;
-                    margin-bottom: 4px !important;
+                    padding: 4px 12px !important;
+                    margin: 0px !important;
                     text-align: center !important;
                     display: block !important;
                     width: 100% !important;
                     border-radius: 6px !important;
                     font-size: 14px !important;
                     font-weight: bold !important;
-                    height: auto !important;
+                    height: 34px !important; /* 버튼 자체의 세로 폭 슬림하게 고정 */
                 }}
                 </style>
                 """,
