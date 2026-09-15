@@ -295,9 +295,21 @@ if df_sched is not None and df_check is not None:
                     size=13
                 )
             )
-            fig_single.update_layout(height=180, margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
+            fig_single.update_layout(
+                height=180, 
+                margin=dict(l=10, r=10, t=10, b=10), 
+                showlegend=False,
+                dragmode="pan",      # 마우스 드래그 기본 동작을 좌우 이동으로 변경
+                xaxis=dict(
+                    fixedrange=False # X축(날짜)은 좌우 드래그 이동 허용
+                ),
+                yaxis=dict(
+                    fixedrange=True  # Y축(Gate 명칭)은 확대 및 위아래 이동 차단
+                )
+            )
             st.plotly_chart(fig_single, use_container_width=True, config={'displayModeBar': False})
             
+            #이 아래부터는 기존에 가지고 계시던 코드가 그대로 이어집니다.
             st.markdown("<br>", unsafe_allow_html=True)
 
             col_left, col_right = st.columns(2)
