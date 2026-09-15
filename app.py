@@ -56,24 +56,34 @@ if df_sched is not None and df_check is not None:
         df_check['Category'] = df_check['Category'].ffill()
 
     if "initialized_events" not in st.session_state:
-        for d in range(1, 31):
+        row in d in range(1, 31):
             st.session_state[f"stored_events_{d}"] = {}
-            hours_list_init = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
-            for h_str in hours_list_init:
+            hours_list_init = [f"{str(h).zfill(2)}:00" row in h in range(6, 24)]
+            row in h_str in hours_list_init:
                 st.session_state[f"cal_status_{d}_{h_str}"] = False
         
-        if df_cal_saved is not None and not df_cal_saved.empty:
-            for _, row in df_cal_saved.iterrows():
-                try:
-                    d_val = int(row["Day"])
-                    t_val = str(row["Time"]).strip()
-                    e_val = str(row["Event"]).strip()
-                    done_val = str(row["Is_Done"]).strip() == "True"
-                    if d_val in range(1, 31) and t_val:
-                        st.session_state[f"stored_events_{d_val}"][t_val] = e_val
-                        st.session_state[f"cal_status_{d_val}_{t_val}"] = done_val
-                except:
-                    pass
+if df_cal_saved is not None and not df_cal_saved.empty:
+    for _, row in df_cal_saved.iterrows():
+        try:
+            y_val = int(row["Year"])
+            m_val = int(row["Month"])
+            d_val = int(row["Day"])
+            t_val = str(row["Time"]).strip()
+            e_val = str(row["Event"]).strip()
+            done_val = str(row["Is_Done"]).strip() == "True"
+            
+            # 저장된 연도/월/일 세션 키에 안전하게 매핑
+            state_key = f"stored_events_{y_val}_{m_val}_{d_val}"
+            status_key = f"cal_status_{y_val}_{m_val}_{d_val}_{t_val}"
+            
+            if state_key not in st.session_state:
+                st.session_state[state_key] = {}
+                
+            if t_val and e_val:
+                st.session_state[state_key][t_val] = e_val
+                st.session_state[status_key] = done_val
+        except Exception as e:
+            pass
         st.session_state["initialized_events"] = True
 
     col_todo, col_cal = st.columns([1.8, 1.2])
@@ -312,17 +322,24 @@ if df_sched is not None and df_check is not None:
                     st.rerun()
 
             if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
-                records_main = []
-                for m_idx in range(1, 13):
-                    for d_idx in range(1, 32):
-                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
-                        d_evs = st.session_state.get(loop_key, {})
-                        for t_val, e_val in d_evs.items():
-                            if e_val.strip():
-                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
-                                records_main.append({"Year": st.session_state.cal_year, "Month": m_idx, "Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_main)})
-                
-                df_main_save = pd.DataFrame(records_main)
+                records = []
+for m_idx in range(1, 13):
+    for d_idx in range(1, 32):
+        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+        d_evs = st.session_state.get(loop_key, {})
+        for t_val, e_val in d_evs.items():
+            if e_val.strip():
+                is_done_btn = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+                records.append({
+                    "Year": int(st.session_state.cal_year),
+                    "Month": int(m_idx),
+                    "Day": int(d_idx),
+                    "Time": str(t_val),
+                    "Event": str(e_val),
+                    "Is_Done": str(is_done_btn)
+                })
+
+df_to_save = pd.DataFrame(records)
                 st.session_state.df_cal_data = df_main_save
                 
                 API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
