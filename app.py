@@ -263,7 +263,7 @@ if df_sched is not None and df_check is not None:
                     st.session_state.df_cal_data = df_to_save
                     
                     try:
-                        API_URL = f"https://google.com"
+                        API_URL = f"https://script.google.com/macros/s/AKfycbw6FOyGQqU-VO9rdQk5YaDzpBHRtjcW4Bp6tR_xznG2VRFOYEZHbDkHSuh9T1vFL1Q/exec"
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
                     except:
                         pass
@@ -323,7 +323,7 @@ if df_sched is not None and df_check is not None:
                 st.session_state.df_cal_data = df_tg_save
                 
                 try:
-                    API_URL = f"https://google.com"
+                    API_URL = f"https://script.google.com/macros/s/AKfycbw6FOyGQqU-VO9rdQk5YaDzpBHRtjcW4Bp6tR_xznG2VRFOYEZHbDkHSuh9T1vFL1Q/exec"
                     requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
                 except:
                     pass
