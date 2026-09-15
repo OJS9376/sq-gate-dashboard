@@ -429,20 +429,31 @@ if df_sched is not None and df_check is not None:
             cal_obj = calendar.Calendar(firstweekday=6)
             month_weeks = cal_obj.monthdayscalendar(st.session_state.cal_year, st.session_state.cal_month)
 
+            # [수정 완료] 상단 달력 헤더 디자인 및 안전한 Native 버튼 교체
             st.markdown(
                 f"""
-                <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
-                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0; margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #666; font-size: 16px; padding: 0 10px;">
-                        <a href="?nav_month=prev" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&lt;</a>
-                        <span>{display_month_name}, {st.session_state.cal_year}</span>
-                        <a href="?nav_month=next" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&gt;</a>
+                <div style="background-color: #F8F9FA; padding: 12px; border-radius: 15px; 
+                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0; margin-bottom: 8px;">
+                    <div style="font-weight: bold; color: #4A3AFF; font-size: 18px;">
+                        {display_month_name}, {st.session_state.cal_year}
                     </div>
                 </div>
                 """, 
                 unsafe_allow_html=True
             )
 
+            # 이전 달, 다음 달 이동 버튼 배치
+            col_prev, col_next = st.columns(2)
+            with col_prev:
+                st.button("◀ 이전 달", on_click=prev_month, use_container_width=True, key="btn_prev_month")
+            with col_next:
+                st.button("다음 달 ▶", on_click=next_month, use_container_width=True, key="btn_next_month")
+
+            st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
+            # ----------------------------------------------------
+            # 요일 및 일자 렌더링 영역 (기존 로직 유지)
+            # ----------------------------------------------------
             col_headers = st.columns(7)
             weekdays_lbls = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
             weekdays_colors = ["#E53935", "#666666", "#666666", "#666666", "#666666", "#666666", "#1E88E5"]
