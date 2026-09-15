@@ -73,14 +73,6 @@ if df_sched is not None and df_check is not None:
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        # 쿼리 파라미터 방식을 적용하여 모바일 클릭 렉 없는 실시간 상태 변화 반영
-        query_params = st.query_params
-        if "toggle_idx" in query_params:
-            clicked_idx = int(query_params["toggle_idx"])
-            st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
-            st.query_params.clear()
-            st.rerun()
-
         # 메모 입력창 팝오버 배치
         with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
@@ -100,7 +92,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
-        # 모바일 가로 줄바꿈 가려짐 현상이 원천 제거된 HTML 블록 리스트 출력
+        # 주소창 변환 없이 즉시 토글되는 투두 리스트 출력 루프
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -113,29 +105,31 @@ if df_sched is not None and df_check is not None:
             bg_color = "#E8F5E9" if is_done else "#FFEBEE"
             border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
+            # [핵심 수정] nth-of-type 스타일 규칙을 적용하여 가짜 버튼 생성을 막고 단 하나의 순정 버튼만 지정 타겟팅합니다.
             st.markdown(
                 f"""
-                <a href="?toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
-                    <div style="
-                        background-color: {bg_color}; 
-                        color: {status_color}; 
-                        border: 1px solid {border_color}; 
-                        border-radius: 6px; 
-                        padding: 6px 12px; 
-                        margin-bottom: 4px; 
-                        font-weight: bold; 
-                        font-size: 14px; 
-                        text-align: center;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        {status_text} : {current_note}
-                    </div>
-                </a>
+                <style>
+                div[data-testid="column"]:nth-of-type(1) div.element-container:has(button[key="todo_btn_{idx}"]) button {{
+                    background-color: {bg_color} !important;
+                    color: {status_color} !important;
+                    border: 1px solid {border_color} !important;
+                    box-shadow: 0px 1px 2px rgba(0,0,0,0.05) !important;
+                    padding: 6px 12px !important;
+                    margin-bottom: 4px !important;
+                    text-align: center !important;
+                    display: block !important;
+                    width: 100% !important;
+                    border-radius: 6px !important;
+                    font-size: 14px !important;
+                    font-weight: bold !important;
+                    height: auto !important;
+                }}
+                </style>
                 """,
                 unsafe_allow_html=True
             )
 
-            # 버튼 클릭 시 주소창 파라미터 이동 없이 즉각적으로 메모리 상태 반전 및 리런
+            # 버튼 클릭 시 즉각적으로 상태가 반전되며 깜빡임 없이 리런됩니다.
             if st.button(f"{status_text} : {current_note}", key=f"todo_btn_{idx}", use_container_width=True):
                 st.session_state.todo_status[idx] = not st.session_state.todo_status[idx]
                 st.rerun()
@@ -151,7 +145,7 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
-            # [새 창 레이아웃] 화면 깜빡임이 차단된 단독 일정 관리 전용 창
+            # [새 창 레이아웃] 화면 깜빡임 및 버튼 중복이 차단된 단독 일정 관리 전용 창
             # ------------------------------------------------------------------
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
@@ -193,24 +187,6 @@ if df_sched is not None and df_check is not None:
             }
             day_events = mock_events.get(selected_day, {})
 
-            # 세로 여백 최소화를 위한 CSS 배치 스타일 정의
-            st.markdown(
-                """
-                <style>
-                div[data-testid="stButton"] button {
-                    padding: 6px 10px !important;
-                    margin-bottom: -10px !important;
-                    text-align: left !important;
-                    display: block !important;
-                    width: 100% !important;
-                    border-radius: 5px !important;
-                    font-size: 13px !important;
-                }
-                </style>
-                """, 
-                unsafe_allow_html=True
-            )
-
             # 주소 이동 대신 렉 없이 내부 세션만 깜빡임 없이 즉시 반전시키는 반복 루프
             for h_str in hours_list:
                 event_text = day_events.get(h_str, "일정 없음")
@@ -234,16 +210,23 @@ if df_sched is not None and df_check is not None:
                 else:
                     bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
 
-                # 브라우저 주소를 바꾸지 않는 커스텀 스타일 입힌 무렉 버튼 생성
+                # [핵심 수정] element-container 기준 정밀 타깃 추적으로 가짜 버튼 복제 생성을 완벽 차단합니다.
                 st.markdown(
                     f"""
                     <style>
-                    div[data-testid="stButton"] button[key*="btn_{selected_day}_{h_str}"] {{
+                    div[data-testid="column"]:nth-of-type(2) div.element-container:has(button[key="btn_{selected_day}_{h_str}"]) button {{
                         background-color: {bg_c} !important;
                         color: {text_c} !important;
                         border: 1px solid {border_c} !important;
                         justify-content: space-between !important;
                         display: flex !important;
+                        padding: 6px 10px !important;
+                        margin-bottom: 4px !important;
+                        text-align: left !important;
+                        width: 100% !important;
+                        border-radius: 5px !important;
+                        font-size: 13px !important;
+                        height: auto !important;
                     }}
                     </style>
                     """,
@@ -254,6 +237,7 @@ if df_sched is not None and df_check is not None:
                 if st.button(f"[{h_str}] {event_text} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 [{status_lbl}]", key=f"btn_{selected_day}_{h_str}", use_container_width=True):
                     st.session_state[state_key] = not st.session_state[state_key]
                     st.rerun()
+
         else:
             # ------------------------------------------------------------------
             # [기본 메인 화면] 평소 메인 화면 진입 시 노출되는 깔끔한 미니 달력 스킨
