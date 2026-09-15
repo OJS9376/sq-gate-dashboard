@@ -6,18 +6,20 @@ import io
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
-
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
-
-# 회원님의 구글 스프레드시트 고유 ID 정의
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
+URL_SCHED = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Project_Schedule"
+URL_CHECK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Checklist"
+
 
 @st.cache_data(ttl=5)
 def load_data():
     try:
+        # urlopen 대신 가장 안정적인 requests 라이브러리를 사용해 데이터를 바이트 형태로 먼저 가져옵니다.
         response = requests.get(URL_BASE, timeout=10)
         if response.status_code == 200:
+            # 다운로드한 데이터를 파일 형태로 메모리에 올려 openpyxl로 읽어들입니다.
             excel_file = io.BytesIO(response.content)
             df_sched = pd.read_excel(excel_file, sheet_name="Project_Schedule", engine='openpyxl')
             df_check = pd.read_excel(excel_file, sheet_name="Checklist", engine='openpyxl')
@@ -48,15 +50,10 @@ if df_sched is not None and df_check is not None:
         df_check['Category'] = df_check['Category'].ffill()
 
     # ------------------------------------------------------------------
-    # 전 프로젝트 통합 달력형 타임라인 보기 및 보기 모드 선택 필터
+    # 전 프로젝트 통합 달력형 타임라인 보기
     # ------------------------------------------------------------------
-    st.markdown("### 전 프로젝트 마일스톤 달력")
-    
-    view_mode = st.radio(
-        "달력 보기 모드 선택",
-        ["전체 프로젝트 한눈에 보기", "특정 프로젝트만 골라보기"],
-        horizontal=True
-    )
+    st.markdown("### 전 프로젝트 통합 마일스톤 달력")
+    st.caption("모든 프로젝트의 Gate별 마감 일정을 타임라인 달력 형태로 한눈에 비교합니다.")
     
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
@@ -76,21 +73,14 @@ if df_sched is not None and df_check is not None:
                         gate_check = df_check[(df_check['Project'] == p_name) & (df_check['Gate'].str.strip() == f"Q{i}")]
                         total_tasks = len(gate_check)
                         progress = 0
-                        
-                        category_name = f"Q{i}"
                         if total_tasks > 0:
                             completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
                             progress = int((completed_tasks / total_tasks) * 100)
-                            
-                            valid_categories = gate_check['Category'].dropna()
-                            if not valid_categories.empty:
-                                category_name = f"Q{i}: {str(valid_categories.iloc).strip()}"
                         
                         all_projects_timeline.append({
                             "프로젝트": p_name,
                             "Gate": f"Q{i}",
-                            "Gate_Num": i,
-                            "카테고리표시": category_name,
+                            "표시명": f"{p_name}_{f'Q{i}'}",
                             "심의예정일": start_dt,
                             "최종마감일": end_dt,
                             "진척률(%)": progress
@@ -101,66 +91,20 @@ if df_sched is not None and df_check is not None:
     if all_projects_timeline:
         df_all_timeline = pd.DataFrame(all_projects_timeline)
         
-        # [자동 최적화 분기 로직 구현]
-        if view_mode == "특정 프로젝트만 골라보기":
-            filter_project = st.selectbox("달력에 표시할 프로젝트 선택", df_all_timeline["프로젝트"].unique(), key="cal_filter")
-            df_project_only = df_all_timeline[df_all_timeline["프로젝트"] == filter_project]
-            
-            # 미완료(진척률 100% 미만)인 항목 중 가장 마지막(최대) Gate 번호 찾기
-            incomplete_gates = df_project_only[df_project_only["진척률(%)"] < 100]
-            
-            if not incomplete_gates.empty:
-                max_active_gate_num = incomplete_gates["Gate_Num"].max()
-                # 현재 타겟팅해야 하는 마지막 활성화 Gate와 그 이전 일정들만 필터링 (불필요한 미래일정 숨김)
-                df_display_timeline = df_project_only[df_project_only["Gate_Num"] <= max_active_gate_num]
-            else:
-                # 모든 Gate가 완료된 프로젝트라면 전체 표출
-                df_display_timeline = df_project_only
-                
-            # 데이터 알맹이 크기에 맞게 가로축 스케일 자동 타이트닝 연산
-            start_visible = df_display_timeline["심의예정일"].min() - pd.Timedelta(days=2)
-            end_visible = df_display_timeline["최종마감일"].max() + pd.Timedelta(days=5)
-        else:
-            # 전체 보기 모드일 때는 전체 프로젝트 리스트 표출
-            df_display_timeline = df_all_timeline
-            # 전체 데이터 범위에 꽉 차도록 가로축 크기 자동 지정
-            start_visible = df_display_timeline["심의예정일"].min() - pd.Timedelta(days=3)
-            end_visible = df_display_timeline["최종마감일"].max() + pd.Timedelta(days=5)
-            
         fig_all = px.timeline(
-            df_display_timeline,
+            df_all_timeline,
             x_start="심의예정일",
             x_end="최종마감일",
             y="프로젝트",
             color="Gate",
-            text="카테고리표시",
+            text="Gate",
             hover_data=["진척률(%)"],
+            title="프로젝트별 품질 활동 일정 전체 비교",
             color_discrete_sequence=px.colors.qualitative.Safe
         )
-        
-        # 최적화된 범위와 마일스톤 가로 격자선 세팅 적용
-        fig_all.update_xaxes(
-            type="date",
-            range=[start_visible, end_visible],
-            tickformat="%m/%d",
-            gridcolor="rgba(230, 230, 230, 0.5)"
-        )
-        
         fig_all.add_vline(x=today, line_width=2, line_dash="dash", line_color="red")
         fig_all.update_yaxes(autorange="reversed")
-        
-        fig_all.update_traces(
-            textposition="outside", 
-            textfont=dict(size=11, color="black"),
-            cliponaxis=False
-        )
-        
-        fig_all.update_layout(
-            showlegend=True,
-            height=280, 
-            margin=dict(l=10, r=10, t=30, b=20),
-            title=None
-        )
+        fig_all.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("등록된 전체 일정 데이터가 없습니다.")
@@ -168,12 +112,12 @@ if df_sched is not None and df_check is not None:
     st.markdown("---")
 
     # ------------------------------------------------------------------
-    # 개별 프로젝트 세부 점검 및 편집 영역
+    # 개별 프로젝트 세부 점검 영역
     # ------------------------------------------------------------------
     st.markdown("### 프로젝트별 세부 품질활동 점검")
     
     project_list = df_sched['Project'].dropna().unique()
-    selected_project = st.selectbox("조회 및 편집할 프로젝트 선택", project_list, key="main_project_filter")
+    selected_project = st.selectbox("조회 및 편집할 프로젝트 선택", project_list)
     
     p_rows = df_sched[df_sched['Project'] == selected_project]
     p_check = df_check[df_check['Project'] == selected_project]
@@ -183,7 +127,7 @@ if df_sched is not None and df_check is not None:
         if 'Owner' in p_rows.columns:
             valid_owners = p_rows['Owner'].dropna()
             if not valid_owners.empty:
-                owner_info = str(valid_owners.iloc)
+                owner_info = str(valid_owners.iloc[0])
 
         timeline_data = []
 
@@ -196,31 +140,28 @@ if df_sched is not None and df_check is not None:
             dead_val = p_rows[d_col].dropna() if d_col in p_rows.columns else pd.Series(dtype='object')
 
             if not target_val.empty and not dead_val.empty:
-                try:
-                    target_dt = pd.to_datetime(target_val.iloc).replace(tzinfo=None)
-                    dead_dt = pd.to_datetime(dead_val.iloc).replace(tzinfo=None)
-                    
-                    gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
-                    total_tasks = len(gate_check)
-                    progress = 0
-                    
-                    if total_tasks > 0:
-                        completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
-                        progress = int((completed_tasks / total_tasks) * 100)
-                    
-                    d_day = (dead_dt - today).days
-                    if d_day > 0:
-                        d_day_str = f"D-{d_day} (마감 전)"
-                    elif d_day < 0:
-                        d_day_str = f"D+{-d_day} (마감 지연)"
-                    else:
-                        d_day_str = "D-Day (오늘마감)"
-                    
-                    timeline_data.append({
-                        "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day
-                    })
-                except:
-                    pass
+                target_dt = pd.to_datetime(target_val.iloc[0]).replace(tzinfo=None)
+                dead_dt = pd.to_datetime(dead_val.iloc[0]).replace(tzinfo=None)
+                
+                gate_check = df_check[(df_check['Project'] == selected_project) & (df_check['Gate'].str.strip() == q_name)]
+                total_tasks = len(gate_check)
+                progress = 0
+                
+                if total_tasks > 0:
+                    completed_tasks = len(gate_check[gate_check['Status'].astype(str).str.strip() == "완료"])
+                    progress = int((completed_tasks / total_tasks) * 100)
+                
+                d_day = (dead_dt - today).days
+                if d_day > 0:
+                    d_day_str = f"D-{d_day} (마감 전)"
+                elif d_day < 0:
+                    d_day_str = f"D+{-d_day} (마감 지연)"
+                else:
+                    d_day_str = "D-Day (오늘마감)"
+                
+                timeline_data.append({
+                    "Gate": q_name, "Start": target_dt, "End": dead_dt, "Progress": progress, "D-Day": d_day_str, "Raw_D_Day": d_day
+                })
 
         if timeline_data:
             rdf = pd.DataFrame(timeline_data)
@@ -242,7 +183,7 @@ if df_sched is not None and df_check is not None:
                 def highlight_delay(row):
                     styles = [''] * len(row)
                     if row['Raw_D_Day'] < 0 and row['완료율(%)'] < 100:
-                       styles = ['background-color: #f8d7da; color: #721c24; font-weight: bold;'] * len(row)
+                        styles = ['background-color: #f8d7da; color: #721c24; font-weight: bold;'] * len(row)
                     return styles
 
                 st.dataframe(display_df.style.apply(highlight_delay, axis=1), use_container_width=True, hide_index=True, column_config={"Raw_D_Day": None})
