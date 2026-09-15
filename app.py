@@ -6,10 +6,12 @@ import io
 
 # 대시보드 기본 설정
 st.set_page_config(page_title="sQ-Gate 종합 마일스톤 대시보드", layout="wide")
-
 st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
+URL_BASE = f"https://docs.google.com{SHEET_ID}/export?format=xlsx"
+URL_SCHED = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Project_Schedule"
+URL_CHECK = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Checklist"
+
 
 @st.cache_data(ttl=5)
 def load_data():
