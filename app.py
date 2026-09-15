@@ -340,20 +340,21 @@ for m_idx in range(1, 13):
                     "Is_Done": str(is_done_btn)
                 })
 
-df_to_save = pd.DataFrame(records)
-                st.session_state.df_cal_data = df_main_save
-                
-                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
-                try:
-                    requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
-                except:
-                    pass
-                
-                if "view_schedule" in st.query_params:
-                    del st.query_params["view_schedule"]
-                if "cal_toggle_hour" in st.query_params:
-                    del st.query_params["cal_toggle_hour"]
-                st.rerun()
+                    df_to_save = pd.DataFrame(records)
+                    st.session_state.df_cal_data = df_to_save
+                    
+                    API_URL = "https://google.com"
+                    try:
+                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
+                    except:
+                        pass
+                    
+                    if "view_schedule" in st.query_params:
+                        del st.query_params["view_schedule"]
+                    if "cal_toggle_hour" in st.query_params:
+                        del st.query_params["cal_toggle_hour"]
+                    st.rerun()
+
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
