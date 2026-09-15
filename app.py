@@ -395,17 +395,15 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
-           def get_day_style(d):
+            def get_day_style(d):
                 d_evs = st.session_state.get(f"stored_events_{d}", {})
                 is_special = any("출장" in txt or "중요" in txt for txt in d_evs.values())
                 
-                if d == now_dt.day and st.session_state.cal_month == now_dt.month:
                 if d == now_dt.day and st.session_state.cal_month == now_dt.month:
                     return "background-color: #E8F5E9; border: 2px solid #2E7D32; border-radius: 4px; font-weight: bold;"
                 elif is_special:
                     return "background-color: #FFFDE7; border: 1px solid #F57F17; border-radius: 4px; font-weight: bold;"
                 return ""
-
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
