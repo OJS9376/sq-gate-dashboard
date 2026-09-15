@@ -137,14 +137,13 @@ if df_sched is not None and df_check is not None:
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
     with col_cal:
-        # 모든 코드 앞에 공백이 정확하게 적용되어 오류를 해결합니다.
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
         current_day = now_dt.day
 
-        # 사용자가 주소창에 직접 입력 일정을 보려고 접근했는지 체크하는 파라미터 감지
         query_params = st.query_params
         
+        # if문과 하단의 else: 문의 들여쓰기 라인을 완벽하게 일치시켰습니다.
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
             # [새 창 레이아웃] 달력 클릭 시 열리는 단독 시간별 일정 관리 창
@@ -152,7 +151,6 @@ if df_sched is not None and df_check is not None:
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
             
-            # 시간별 일정 클릭 이벤트 처리 (새 창 안에서 토글 가능)
             if "cal_toggle_hour" in query_params:
                 t_hour = query_params["cal_toggle_hour"]
                 state_key = f"cal_status_{selected_day}_{t_hour}"
@@ -163,12 +161,10 @@ if df_sched is not None and df_check is not None:
                 st.query_params["view_schedule"] = selected_day
                 st.rerun()
 
-            # 메인 대시보드로 복귀하는 버튼
             st.markdown('<a href="?" target="_self" style="text-decoration:none;"><div style="background-color:#616161; color:white; text-align:center; padding:6px; border-radius:6px; margin-bottom:15px; font-size:13px; font-weight:bold;">메인 대시보드로 돌아가기</div></a>', unsafe_allow_html=True)
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
             
-            # 분 단위 절대 시간 환산 비교 로직 수정
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
@@ -277,7 +273,6 @@ if df_sched is not None and df_check is not None:
                 """, 
                 unsafe_allow_html=True
             )
-
         else:
             # ------------------------------------------------------------------
             # [기본 메인 화면] 평소에는 미니 달력만 깔끔하게 노출
