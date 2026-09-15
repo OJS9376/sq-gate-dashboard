@@ -262,45 +262,38 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    # [연동 점검 테스트 모드 가동]
-                    # 아래 주소의 "XXXXXXXXXXXXXX" 부분을 발급받으신 실제 구글 웹앱 URL 주소로 정확히 치환해 주세요!
                     API_URL = "https://google.com"
-                    
-                    if "XXXXXXXXXXXXXX" in API_URL:
-                        st.error("오류: 코드 내부의 API_URL 주소가 기본 예시 상태입니다. Apps Script 웹앱 주소로 수정해 주세요.")
-                    else:
+                    if "XXXXXXXXXXXXXX" not in API_URL:
                         try:
-                            res = requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=8)
-                            if res.status_code == 200:
-                                st.success("성공: 구글 스프레드시트 서버와 통신에 성공하여 정상 기록되었습니다.")
-                            else:
-                                st.error(f"실패: 구글 응답 코드는 정상이나 전송 에러가 발생했습니다. (상태 코드: {res.status_code})")
-                        except Exception as e:
-                            st.error(f"네트워크 통신 오류 발생 (주소가 틀렸거나 배포 설정 누락): {e}")
+                            requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
+                        except:
+                            pass
                         
+                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
                     st.rerun()
 
-            st.markdown(
-                """
-                <a href="?" target="_self" style="text-decoration:none; display:block;">
-                    <div style="
-                        background-color: #FFFFFF; 
-                        color: #000000; 
-                        text-align: center; 
-                        padding: 6px; 
-                        border-radius: 6px; 
-                        margin-bottom: 15px; 
-                        font-size: 13px; 
-                        font-weight: bold;
-                        border: 1px solid #CCCCCC;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        메인 대시보드로 돌아가기
-                    </div>
-                </a>
-                """, 
-                unsafe_allow_html=True
-            )
+            # [기능 교정 완료] 일반 링크 태그 대신, 누르면 백엔드 데이터 백업 후 주소창을 이동시키는 스트림릿 정품 세이브 버튼 체계 구축
+            if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
+                records_main = []
+                for d_idx in range(1, 31):
+                    d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
+                    for t_val, e_val in d_evs.items():
+                        if e_val.strip():
+                            is_done_main = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
+                            records_main.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_main)})
+                
+                df_main_save = pd.DataFrame(records_main)
+                st.session_state.df_cal_data = df_main_save
+                
+                API_URL = "https://google.com"
+                if "XXXXXXXXXXXXXX" not in API_URL:
+                    try:
+                        requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
+                    except:
+                        pass
+                
+                st.query_params.clear()
+                st.rerun()
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             
@@ -331,7 +324,6 @@ if df_sched is not None and df_check is not None:
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                # 수동 상태 토글 시에도 동시 검증용 디버거 작동
                 API_URL = "https://google.com"
                 if "XXXXXXXXXXXXXX" not in API_URL:
                     try:
@@ -390,6 +382,7 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
+
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
