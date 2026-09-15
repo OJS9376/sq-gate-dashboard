@@ -83,12 +83,27 @@ if df_sched is not None and df_check is not None:
     )
 
     with col_todo:        
+        # 할 일 목록 세션 변수 검증 및 초기화
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
             st.session_state.todo_status = [True, False, False, False, False]
 
-        with st.popover("오늘의 할 일 입력 및 수정하기", use_container_width=True):
+        # 쿼리 파라미터를 확인하여 선택된 날짜가 있는지 추출 (타이틀 연동용)
+        query_params = st.query_params
+        current_sel_day = 15 # 기본값은 오늘 날짜
+        if "view_schedule" in query_params:
+            current_sel_day = int(query_params.get("view_schedule", 15))
+
+        # [수정 반영] 우측에 일정 전용 창이 열려있다면 좌측 제목도 이에 맞추어 동적으로 변환합니다.
+        if "view_schedule" in query_params:
+            st.markdown(f"### {current_sel_day}일 할 일 입력 및 수정")
+        else:
+            # 평소 미니 달력만 있을 때는 공간의 여유를 위해 공백만 유지
+            st.markdown("<div style='margin-bottom: 2px;'></div>", unsafe_allow_html=True)
+
+        # 메모 입력창 팝오버 배치 (라벨 문구의 일치감을 높였습니다)
+        with st.popover(f"{current_sel_day}일 할 일 입력 및 수정하기", use_container_width=True):
             st.markdown("##### 5개의 할 일을 입력하세요")
             new_notes = []
             for idx in range(5):
@@ -106,6 +121,7 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
+        # 오리지널 슬림 HTML 리스트 출력
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
@@ -120,7 +136,7 @@ if df_sched is not None and df_check is not None:
 
             st.markdown(
                 f"""
-                <a href="?safe_toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
+                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
                     <div style="
                         background-color: {bg_color}; 
                         color: {status_color}; 
@@ -141,6 +157,7 @@ if df_sched is not None and df_check is not None:
             )
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
