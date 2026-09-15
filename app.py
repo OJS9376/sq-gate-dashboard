@@ -12,7 +12,7 @@ st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
+URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
 @st.cache_data(ttl=5)
 def load_data():
     try:
