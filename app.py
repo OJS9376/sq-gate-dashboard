@@ -139,92 +139,149 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
-    with col_cal:
-        today = pd.Timestamp.now().normalize()
-        current_year = today.year
-        
-        # 1. 쿼리 파라미터에서 선택된 날짜 가져오기 (기본값은 오늘 날짜인 15일)
-        query_params = st.query_params
-        selected_day = 15
-        if "cal_day" in query_params:
-            selected_day = int(query_params["cal_day"])
-            
-        # 시간별 일정 클릭 이벤트 처리 (cal_toggle_hour 파라미터 감지)
-        if "cal_toggle_hour" in query_params:
-            t_hour = query_params["cal_toggle_hour"]
-            state_key = f"cal_status_{selected_day}_{t_hour}"
-            if state_key not in st.session_state:
-                st.session_state[state_key] = False
-            st.session_state[state_key] = not st.session_state[state_key]
-            st.query_params.clear()
-            st.query_params["cal_day"] = selected_day  # 선택한 날짜 유지
-            st.rerun()
+        with col_cal:
+        # [해결 1] 전 세계 어디서 배포하든 대한민국 온라인 표준시(KST)로 강제 고정합니다.
+        now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
+        current_year = now_dt.year
+        current_day = now_dt.day
 
-        # 2. 미니 달력 출력 (날짜마다 클릭 가능한 링크 생성)
-        # 선택된 날짜는 연두색 테두리로 하이라이트 표시됩니다.
-        st.markdown(
-            f"""
-            <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
-                        box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0;">
-                <div style="font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px;">
-                    &lt;&lt; &lt; SEP, {current_year} &gt; &gt;&gt;
+        # 사용자가 주소창에 직접 입력 일정을 보려고 접근했는지 체크하는 파라미터 감지
+        query_params = st.query_params
+        
+        if "view_schedule" in query_params:
+            # ------------------------------------------------------------------
+            # [새 창 레이아웃] 달력 클릭 시 열리는 단독 시간별 일정 관리 창
+            # ------------------------------------------------------------------
+            selected_day = int(query_params.get("view_schedule", current_day))
+            st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
+            
+            # 시간별 일정 클릭 이벤트 처리 (새 창 안에서 토글 가능)
+            if "cal_toggle_hour" in query_params:
+                t_hour = query_params["cal_toggle_hour"]
+                state_key = f"cal_status_{selected_day}_{t_hour}"
+                if state_key not in st.session_state:
+                    st.session_state[state_key] = False
+                st.session_state[state_key] = not st.session_state[state_key]
+                st.query_params.clear()
+                st.query_params["view_schedule"] = selected_day
+                st.rerun()
+
+            # 메인 대시보드로 복귀하는 버튼
+            st.markdown('<a href="?" target="_self" style="text-decoration:none;"><div style="background-color:#616161; color:white; text-align:center; padding:6px; border-radius:6px; margin-bottom:15px; font-size:13px; font-weight:bold;">메인 대시보드로 돌아가기</div></a>', unsafe_allow_html=True)
+
+            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+            
+            # [해결 2] 분 단위 절대 시간 환산 비교 로직 수정
+            current_hour_now = now_dt.hour
+            current_min_now = now_dt.minute
+            now_absolute_mins = current_hour_now * 60 + current_min_now
+            if current_hour_now < 6:
+                now_absolute_mins += 24 * 60
+
+            mock_events = {
+                15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
+                16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
+            }
+            day_events = mock_events.get(selected_day, {})
+
+            for h_str in hours_list:
+                event_text = day_events.get(h_str, "일정 없음")
+                state_key = f"cal_status_{selected_day}_{h_str}"
+                
+                if state_key not in st.session_state:
+                    st.session_state[state_key] = False
+                    
+                is_done = st.session_state[state_key]
+                
+                target_hour = int(h_str.split(":")[0])
+                target_absolute_mins = target_hour * 60
+                if target_hour < 6:
+                    target_absolute_mins += 24 * 60
+                
+                if is_done:
+                    bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
+                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
+                    bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
+                else:
+                    bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
+
+                st.markdown(
+                    f"""
+                    <a href="?view_schedule={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; background-color: {bg_c}; color: {text_c}; border: 1px solid {border_c}; border-radius: 5px; padding: 6px 10px; font-size: 13px;">
+                            <span style="font-weight: bold;">[{h_str}] {event_text}</span>
+                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 5px; border-radius:3px;">{status_lbl}</span>
+                        </div>
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            # ------------------------------------------------------------------
+            # [기본 메인 화면] 평소에는 미니 달력만 깔끔하게 노출
+            # ------------------------------------------------------------------
+            # 각 날짜 링크에 _blank 타겟을 주어 클릭 시 브라우저 새 탭(새 창)이 열리도록 빌드합니다.
+            st.markdown(
+                f"""
+                <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
+                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0;">
+                    <div style="font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px;">
+                        &lt;&lt; &lt; SEP, {current_year} &gt; &gt;&gt;
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="color: #666; font-weight: bold;">
+                            <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
+                        </tr>
+                        <tr style="color: #444;">
+                            <td></td><td></td>
+                            <td><a href="?view_schedule=1" target="_blank" style="text-decoration:none; color:#AAA;">1</a></td>
+                            <td><a href="?view_schedule=2" target="_blank" style="text-decoration:none; color:#AAA;">2</a></td>
+                            <td><a href="?view_schedule=3" target="_blank" style="text-decoration:none; color:#AAA;">3</a></td>
+                            <td><a href="?view_schedule=4" target="_blank" style="text-decoration:none; color:#AAA;">4</a></td>
+                            <td><a href="?view_schedule=5" target="_blank" style="text-decoration:none; color:#1E88E5;">5</a></td>
+                        </tr>
+                        <tr style="color: #444;">
+                            <td><a href="?view_schedule=6" target="_blank" style="text-decoration:none; color:#E53935;">6</a></td>
+                            <td><a href="?view_schedule=7" target="_blank" style="text-decoration:none; color:#444;">7</a></td>
+                            <td><a href="?view_schedule=8" target="_blank" style="text-decoration:none; color:#444;">8</a></td>
+                            <td><a href="?view_schedule=9" target="_blank" style="text-decoration:none; color:#444;">9</a></td>
+                            <td><a href="?view_schedule=10" target="_blank" style="text-decoration:none; color:#444;">10</a></td>
+                            <td><a href="?view_schedule=11" target="_blank" style="text-decoration:none; color:#444;">11</a></td>
+                            <td><a href="?view_schedule=12" target="_blank" style="text-decoration:none; color:#1E88E5;">12</a></td>
+                        </tr>
+                        <tr style="color: #444;">
+                            <td><a href="?view_schedule=13" target="_blank" style="text-decoration:none; color:#E53935;">13</a></td>
+                            <td><a href="?view_schedule=14" target="_blank" style="text-decoration:none; color:#444;">14</a></td>
+                            <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;">
+                                <a href="?view_schedule=15" target="_blank" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
+                            </td>
+                            <td><a href="?view_schedule=16" target="_blank" style="text-decoration:none; color:#444;">16</a></td>
+                            <td><a href="?view_schedule=17" target="_blank" style="text-decoration:none; color:#444;">17</a></td>
+                            <td><a href="?view_schedule=18" target="_blank" style="text-decoration:none; color:#444;">18</a></td>
+                            <td><a href="?view_schedule=19" target="_blank" style="text-decoration:none; color:#1E88E5;">19</a></td>
+                        </tr>
+                        <tr style="color: #444;">
+                            <td><a href="?view_schedule=20" target="_blank" style="text-decoration:none; color:#E53935;">20</a></td>
+                            <td><a href="?view_schedule=21" target="_blank" style="text-decoration:none; color:#444;">21</a></td>
+                            <td><a href="?view_schedule=22" target="_blank" style="text-decoration:none; color:#444;">22</a></td>
+                            <td><a href="?view_schedule=23" target="_blank" style="text-decoration:none; color:#444;">23</a></td>
+                            <td><a href="?view_schedule=24" target="_blank" style="text-decoration:none; color:#444;">24</a></td>
+                            <td><a href="?view_schedule=25" target="_blank" style="text-decoration:none; color:#444;">25</a></td>
+                            <td><a href="?view_schedule=26" target="_blank" style="text-decoration:none; color:#1E88E5;">26</a></td>
+                        </tr>
+                        <tr style="color: #444;">
+                            <td><a href="?view_schedule=27" target="_blank" style="text-decoration:none; color:#E53935;">27</a></td>
+                            <td><a href="?view_schedule=28" target="_blank" style="text-decoration:none; color:#444;">28</a></td>
+                            <td><a href="?view_schedule=29" target="_blank" style="text-decoration:none; color:#444;">29</a></td>
+                            <td><a href="?view_schedule=30" target="_blank" style="text-decoration:none; color:#444;">30</a></td>
+                            <td></td><td></td><td></td>
+                        </tr>
+                    </table>
                 </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                    <tr style="color: #666; font-weight: bold;">
-                        <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
-                    </tr>
-                    <tr style="color: #444;">
-                        <td></td><td></td>
-                        <td><a href="?cal_day=1" target="_self" style="text-decoration:none; color:#AAA;">1</a></td>
-                        <td><a href="?cal_day=2" target="_self" style="text-decoration:none; color:#AAA;">2</a></td>
-                        <td><a href="?cal_day=3" target="_self" style="text-decoration:none; color:#AAA;">3</a></td>
-                        <td><a href="?cal_day=4" target="_self" style="text-decoration:none; color:#AAA;">4</a></td>
-                        <td><a href="?cal_day=5" target="_self" style="text-decoration:none; color:#1E88E5;">5</a></td>
-                    </tr>
-                    <tr style="color: #444;">
-                        <td><a href="?cal_day=6" target="_self" style="text-decoration:none; color:#E53935;">6</a></td>
-                        <td><a href="?cal_day=7" target="_self" style="text-decoration:none; color:#444;">7</a></td>
-                        <td><a href="?cal_day=8" target="_self" style="text-decoration:none; color:#444;">8</a></td>
-                        <td><a href="?cal_day=9" target="_self" style="text-decoration:none; color:#444;">9</a></td>
-                        <td><a href="?cal_day=10" target="_self" style="text-decoration:none; color:#444;">10</a></td>
-                        <td><a href="?cal_day=11" target="_self" style="text-decoration:none; color:#444;">11</a></td>
-                        <td><a href="?cal_day=12" target="_self" style="text-decoration:none; color:#1E88E5;">12</a></td>
-                    </tr>
-                    <tr style="color: #444;">
-                        <td><a href="?cal_day=13" target="_self" style="text-decoration:none; color:#E53935;">13</a></td>
-                        <td><a href="?cal_day=14" target="_self" style="text-decoration:none; color:#444;">14</a></td>
-                        <!-- 선택된 날짜 스타일에 테두리 및 배경색 동적 조건 부여 -->
-                        <td style="{'background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;' if selected_day == 15 else ''}">
-                            <a href="?cal_day=15" target="_self" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
-                        </td>
-                        <td style="{'background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;' if selected_day == 16 else ''}">
-                            <a href="?cal_day=16" target="_self" style="text-decoration:none; color:#444;">16</a>
-                        </td>
-                        <td><a href="?cal_day=17" target="_self" style="text-decoration:none; color:#444;">17</a></td>
-                        <td><a href="?cal_day=18" target="_self" style="text-decoration:none; color:#444;">18</a></td>
-                        <td><a href="?cal_day=19" target="_self" style="text-decoration:none; color:#1E88E5;">19</a></td>
-                    </tr>
-                    <tr style="color: #444;">
-                        <td><a href="?cal_day=20" target="_self" style="text-decoration:none; color:#E53935;">20</a></td>
-                        <td><a href="?cal_day=21" target="_self" style="text-decoration:none; color:#444;">21</a></td>
-                        <td><a href="?cal_day=22" target="_self" style="text-decoration:none; color:#444;">22</a></td>
-                        <td><a href="?cal_day=23" target="_self" style="text-decoration:none; color:#444;">23</a></td>
-                        <td><a href="?cal_day=24" target="_self" style="text-decoration:none; color:#444;">24</a></td>
-                        <td><a href="?cal_day=25" target="_self" style="text-decoration:none; color:#444;">25</a></td>
-                        <td><a href="?cal_day=26" target="_self" style="text-decoration:none; color:#1E88E5;">26</a></td>
-                    </tr>
-                    <tr style="color: #444;">
-                        <td><a href="?cal_day=27" target="_self" style="text-decoration:none; color:#E53935;">27</a></td>
-                        <td><a href="?cal_day=28" target="_self" style="text-decoration:none; color:#444;">28</a></td>
-                        <td><a href="?cal_day=29" target="_self" style="text-decoration:none; color:#444;">29</a></td>
-                        <td><a href="?cal_day=30" target="_self" style="text-decoration:none; color:#444;">30</a></td>
-                        <td></td><td></td><td></td>
-                    </tr>
-                </table>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+                """, 
+                unsafe_allow_html=True
+            )
+
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
