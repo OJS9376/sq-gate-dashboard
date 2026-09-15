@@ -82,23 +82,6 @@ if df_sched is not None and df_check is not None:
         unsafe_allow_html=True
     )
 
-    col_todo, col_cal = st.columns([1.8, 1.2])
-
-    st.markdown(
-        """
-        <style>
-        div[data-testid="stHorizontalBlock"] {
-            align-items: flex-start !important;
-        }
-        div[data-testid="column"]:nth-of-type(2) {
-            margin-top: 0px !important;
-            padding-top: 0px !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
     with col_todo:        
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
