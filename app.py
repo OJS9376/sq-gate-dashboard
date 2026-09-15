@@ -137,7 +137,6 @@ if df_sched is not None and df_check is not None:
 
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
     with col_cal:
-        # 대한민국 온라인 가상 서버 표준시(KST) 연동 매칭 및 로컬 고정
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
         current_day = now_dt.day
@@ -161,11 +160,31 @@ if df_sched is not None and df_check is not None:
                 st.query_params["view_schedule"] = selected_day
                 st.rerun()
 
-            st.markdown('<a href="?" target="_self" style="text-decoration:none;"><div style="background-color:#616161; color:white; text-align:center; padding:6px; border-radius:6px; margin-bottom:15px; font-size:13px; font-weight:bold;">메인 대시보드로 돌아가기</div></a>', unsafe_allow_html=True)
+            # [수정 포인트 2] 흰색 배경에 검은색 글자로 스타일 전면 개편
+            st.markdown(
+                """
+                <a href="?" target="_self" style="text-decoration:none;">
+                    <div style="
+                        background-color: #FFFFFF; 
+                        color: #000000; 
+                        text-align: center; 
+                        padding: 6px; 
+                        border-radius: 6px; 
+                        margin-bottom: 15px; 
+                        font-size: 13px; 
+                        font-weight: bold;
+                        border: 1px solid #CCCCCC;
+                        box-shadow: 0px 1px 3px rgba(0,0,0,0.1);
+                    ">
+                        메인 대시보드로 돌아가기
+                    </div>
+                </a>
+                """, 
+                unsafe_allow_html=True
+            )
 
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
             
-            # 실제 분 단위 연산을 통한 실시간 지남, 대기 조건부 분기 회생
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
             now_absolute_mins = current_hour_now * 60 + current_min_now
@@ -187,7 +206,8 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":"))
+                # [수정 포인트 1] 리스트 슬라이싱 인덱스 0번을 붙여서 시(Hour) 문자열 정보만 정확히 파싱하도록 변경
+                target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
