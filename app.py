@@ -116,6 +116,43 @@ if df_sched is not None and df_check is not None:
                 st.rerun()
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+
+        for idx in range(5):
+            current_note = st.session_state.todo_notes[idx]
+            if not current_note.strip():
+                current_note = f"우선순위 {idx+1} (내용을 입력해 주세요)"
+                
+            is_done = st.session_state.todo_status[idx]
+            
+            status_text = "진행완료" if is_done else "미진행"
+            status_color = "#2E7D32" if is_done else "#D32F2F"
+            bg_color = "#E8F5E9" if is_done else "#FFEBEE"
+            border_color = "#A5D6A7" if is_done else "#EF9A9A"
+
+            st.markdown(
+                f"""
+                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
+                    <div style="
+                        background-color: {bg_color}; 
+                        color: {status_color}; 
+                        border: 1px solid {border_color}; 
+                        border-radius: 6px; 
+                        padding: 6px 12px; 
+                        margin-bottom: 4px; 
+                        font-weight: bold; 
+                        font-size: 14px; 
+                        text-align: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        {status_text} : {current_note}
+                    </div>
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
+
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 10px;'>월간 출장 및 중요 품질 일정</h4>", unsafe_allow_html=True)
 
@@ -160,55 +197,12 @@ if df_sched is not None and df_check is not None:
         else:
             st.markdown(
                 """
-                <div style="
-                    background-color: #F8F9FA; 
-                    color: #9E9E9E; 
-                    border: 1px solid #E0E0E0; 
-                    border-radius: 6px; 
-                    padding: 20px; 
-                    text-align: center; 
-                    font-size: 13px;
-                ">
+                <div style="background-color: #F8F9FA; color: #9E9E9E; border: 1px solid #E0E0E0; border-radius: 6px; padding: 20px; text-align: center; font-size: 13px;">
                     등록된 월간 출장 또는 중요 품질 일정이 없습니다.
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-        for idx in range(5):
-            current_note = st.session_state.todo_notes[idx]
-            if not current_note.strip():
-                current_note = f"우선순위 {idx+1} (내용을 입력해 주세요)"
-                
-            is_done = st.session_state.todo_status[idx]
-            
-            status_text = "진행완료" if is_done else "미진행"
-            status_color = "#2E7D32" if is_done else "#D32F2F"
-            bg_color = "#E8F5E9" if is_done else "#FFEBEE"
-            border_color = "#A5D6A7" if is_done else "#EF9A9A"
-
-            st.markdown(
-                f"""
-                <a href="?safe_toggle_idx={idx}&view_schedule={current_sel_day}" target="_self" style="text-decoration: none; display: block;">
-                    <div style="
-                        background-color: {bg_color}; 
-                        color: {status_color}; 
-                        border: 1px solid {border_color}; 
-                        border-radius: 6px; 
-                        padding: 6px 12px; 
-                        margin-bottom: 4px; 
-                        font-weight: bold; 
-                        font-size: 14px; 
-                        text-align: center;
-                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
-                    ">
-                        {status_text} : {current_note}
-                    </div>
-                </a>
-                """,
-                unsafe_allow_html=True
-            )
-
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
@@ -220,22 +214,9 @@ if df_sched is not None and df_check is not None:
         if "view_schedule" in query_params:
             selected_day = int(query_params.get("view_schedule", current_day))
             
-            day_options = list(range(1, 31))
-            try:
-                default_idx = day_options.index(selected_day)
-            except:
-                default_idx = 14
-
-            chosen_day = st.selectbox("이동할 날짜 선택", day_options, index=default_idx, key="nav_day_selectbox")
-            if chosen_day != selected_day:
-                st.query_params.clear()
-                st.query_params["view_schedule"] = chosen_day
-                st.rerun()
-
             with st.popover(f"{selected_day}일 시간별 일정 관리 및 입력", use_container_width=True):
                 st.markdown(f"##### {selected_day}일 시간대별 수행활동 편집")
                 
-                # 사용자가 요청한 06:00부터 23:00까지만 정확히 표현하도록 범위 고정
                 hours_setup = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
                 
                 if f"stored_events_{selected_day}" not in st.session_state:
@@ -250,7 +231,23 @@ if df_sched is not None and df_check is not None:
                 
                 if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
                     st.session_state[f"stored_events_{selected_day}"] = updated_events
-                    st.success("시간별 품질활동 일정이 저장되었습니다.")
+                    
+                    # [증발 차단 핵심] 작성한 모든 일정을 구글 배포 자동 시스템 연동 포맷 갱신 데이터프레임으로 변환
+                    records = []
+                    for d_idx in range(1, 31):
+                        d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
+                        for t_val, e_val in d_evs.items():
+                            if e_val.strip():
+                                records.append({"Day": d_idx, "Time": t_val, "Event": e_val})
+                    
+                    df_to_save = pd.DataFrame(records)
+                    st.session_state.df_cal_data = df_to_save
+                    
+                    # 구글 웹앱 매크로(Apps Script) URL 주소가 확보되어 있다면 하단에 다이렉트 POST 송신 연동이 가능합니다.
+                    # 현 구조에서는 세션 내 강제 홀딩 로직을 주입하여 st.rerun 시 강제 덮어쓰기를 일시 유예합니다.
+                    st.session_state["initialized_events"] = True
+                    st.cache_data.clear()
+                    st.success("시간별 품질활동 일정이 메모리에 고정되었습니다.")
                     st.rerun()
 
             st.markdown(
