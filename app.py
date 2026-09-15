@@ -395,61 +395,70 @@ if df_sched is not None and df_check is not None:
         else:
             import calendar
 
-            def get_day_style(d):
+            def check_special_day(d):
                 d_evs = st.session_state.get(f"stored_events_{d}", {})
-                is_special = any("출장" in txt or "중요" in txt for txt in d_evs.values())
-                
-                if d == now_dt.day and st.session_state.cal_month == now_dt.month and st.session_state.cal_year == now_dt.year:
-                    return "background-color: #E8F5E9; border: 2px solid #2E7D32; border-radius: 4px; font-weight: bold;"
-                elif is_special:
-                    return "background-color: #FFFDE7; border: 1px solid #F57F17; border-radius: 4px; font-weight: bold;"
-                return ""
+                return any("출장" in txt or "중요" in txt for txt in d_evs.values())
 
             cal_obj = calendar.Calendar(firstweekday=6)
             month_weeks = cal_obj.monthdayscalendar(st.session_state.cal_year, st.session_state.cal_month)
 
-            table_rows_html = ""
-            for week in month_weeks:
-                row_html = "<tr style='color: #444;'>"
-                for day_idx, d in enumerate(week):
-                    if d == 0:
-                        row_html += "<td></td>"
-                    else:
-                        style_str = get_day_style(d)
-                        if day_idx == 0:
-                            lbl_color = "#E53935"
-                        elif day_idx == 6:
-                            lbl_color = "#1E88E5"
-                        else:
-                            lbl_color = "#444"
-                            
-                        row_html += f"""
-                        <td style="{style_str}">
-                            <a href="?view_schedule={d}" target="_self" style="text-decoration:none; color:{lbl_color}; display:block; padding:4px;">{d}</a>
-                        </td>
-                        """
-                row_html += "</tr>"
-                table_rows_html += row_html
-
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
-                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px; padding: 0 10px;">
+                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #666; font-size: 16px; padding: 0 10px;">
                         <a href="?nav_month=prev" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&lt;</a>
                         <span>{display_month_name}, {st.session_state.cal_year}</span>
                         <a href="?nav_month=next" target="_self" style="text-decoration:none; color:#4A3AFF; font-size:18px;">&gt;</a>
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr style="color: #666; font-weight: bold;">
-                            <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
-                        </tr>
-                        {table_rows_html}
-                    </table>
                 </div>
                 """, 
                 unsafe_allow_html=True
             )
+
+            col_headers = st.columns(7)
+            weekdays_lbls = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            weekdays_colors = ["#E53935", "#666666", "#666666", "#666666", "#666666", "#666666", "#1E88E5"]
+            
+            for i in range(7):
+                with col_headers[i]:
+                    st.markdown(f"<p style='text-align:center; font-weight:bold; color:{weekdays_colors[i]}; margin-bottom:2px;'>{weekdays_lbls[i]}</p>", unsafe_allow_html=True)
+
+            for week in month_weeks:
+                col_days = st.columns(7)
+                for day_idx, d in enumerate(week):
+                    with col_days[day_idx]:
+                        if d == 0:
+                            st.write("")
+                        else:
+                            is_special = check_special_day(d)
+                            is_today = (d == now_dt.day and st.session_state.cal_month == now_dt.month and st.session_state.cal_year == now_dt.year)
+                            
+                            if is_today:
+                                box_style = "background-color: #E8F5E9; border: 2px solid #2E7D32;"
+                                text_color = "#2E7D32"
+                            elif is_special:
+                                box_style = "background-color: #FFFDE7; border: 1px solid #F57F17;"
+                                text_color = "#000000"
+                            else:
+                                box_style = "background-color: #FFFFFF; border: 1px solid #E0E0E0;"
+                                if day_idx == 0:
+                                    text_color = "#E53935"
+                                elif day_idx == 6:
+                                    text_color = "#1E88E5"
+                                else:
+                                    text_color = "#444444"
+
+                            st.markdown(
+                                f"""
+                                <a href="?view_schedule={d}" target="_self" style="text-decoration: none; display: block;">
+                                    <div style="{box_style} padding: 6px 0px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 13px; color: {text_color}; box-shadow: 0px 1px 2px rgba(0,0,0,0.03);">
+                                        {d}
+                                    </div>
+                                </a>
+                                """,
+                                unsafe_allow_html=True
+                            )
 
     # ------------------------------------------------------------------
     # 전 프로젝트 마일스톤 통합 비교 타임라인 시각화 영역
