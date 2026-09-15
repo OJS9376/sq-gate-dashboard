@@ -59,14 +59,17 @@ if df_sched is not None and df_check is not None:
         st.data_editor(
             todo_data,
             column_config={
-                # [핵심 수정] 문자열 대신 숫자(35픽셀)를 직접 넣어 왼쪽 끝으로 바짝 밀어붙입니다.
-                "선택": st.column_config.CheckboxColumn(label="", default=False, width=35),
+                # 체크박스 열이 너무 쪼그라들어 입력창을 침범하지 않도록 너비를 45로 살짝 늘립니다.
+                "선택": st.column_config.CheckboxColumn(label="", default=False, width=45),
+                # 메모 열의 텍스트가 왼쪽으로 밀리지 않도록 형식을 확실하게 지정합니다.
                 "할 일 내용": st.column_config.TextColumn(label="오늘의 주요 품질활동 메모", width="large")
             },
             hide_index=True,
             use_container_width=True,
-            key="top_todo_list_perfect_width"
+            # 매번 새로운 입력 시 고유 키를 보장합니다.
+            key="top_todo_list_mobile_fixed"
         )
+        
     with col_cal:
         today = pd.Timestamp.now().normalize()
         current_year = today.year
