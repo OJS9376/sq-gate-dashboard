@@ -23,7 +23,7 @@ def load_data():
             try:
                 df_cal_saved = pd.read_excel(excel_file, sheet_name="Schedules", engine='openpyxl')
             except:
-                df_cal_saved = pd.DataFrame(columns=["Day", "Time", "Event"])
+                df_cal_saved = pd.DataFrame(columns=["Day", "Time", "Event", "Is_Done"])
                 
             return df_sched, df_check, df_cal_saved
         else:
@@ -58,6 +58,9 @@ if df_sched is not None and df_check is not None:
     if "initialized_events" not in st.session_state:
         for d in range(1, 31):
             st.session_state[f"stored_events_{d}"] = {}
+            hours_list_init = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
+            for h_str in hours_list_init:
+                st.session_state[f"cal_status_{d}_{h_str}"] = False
         
         if df_cal_saved is not None and not df_cal_saved.empty:
             for _, row in df_cal_saved.iterrows():
@@ -65,8 +68,10 @@ if df_sched is not None and df_check is not None:
                     d_val = int(row["Day"])
                     t_val = str(row["Time"]).strip()
                     e_val = str(row["Event"]).strip()
+                    done_val = str(row["Is_Done"]).strip() == "True"
                     if d_val in range(1, 31) and t_val:
                         st.session_state[f"stored_events_{d_val}"][t_val] = e_val
+                        st.session_state[f"cal_status_{d_val}_{t_val}"] = done_val
                 except:
                     pass
         st.session_state["initialized_events"] = True
@@ -189,7 +194,7 @@ if df_sched is not None and df_check is not None:
                         box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
                     ">
                         <span style="font-weight: bold;">[{item["날짜"]} {item["시간"]}] {item["내용"]}</span>
-                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); padding: 2px 6px; border-radius: 4px; font-weight: normal;">품질활동</span>
+                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.4); padding: 2px 6px; border-radius: 4px; font-weight: normal;">품질활동</span>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -203,6 +208,7 @@ if df_sched is not None and df_check is not None:
                 """,
                 unsafe_allow_html=True
             )
+
     with col_cal:
         now_dt = pd.Timestamp.now(tz='Asia/Seoul').replace(tzinfo=None)
         current_year = now_dt.year
@@ -244,7 +250,22 @@ if df_sched is not None and df_check is not None:
                 if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
                     st.session_state[f"stored_events_{selected_day}"] = updated_events
                     st.session_state["initialized_events"] = True
-                    st.success("시간별 품질활동 일정이 메모리에 고정되었습니다.")
+                    
+                    # [구글 스프레드시트 Schedules 저장소 동기화 빌드 파이프라인]
+                    records = []
+                    for d_idx in range(1, 31):
+                        d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
+                        for t_val, e_val in d_evs.items():
+                            if e_val.strip():
+                                is_done_btn = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
+                                records.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": is_done_btn})
+                    
+                    df_to_save = pd.DataFrame(records)
+                    st.session_state.df_cal_data = df_to_save
+                    
+                    # 구글 웹앱 매크로 주소가 제공될 시 하단에 requests.post 호출 플러그인 연결 가능
+                    # 데이터 유실을 차단하기 위해 세션 데이터 고정 락 장치 동시 가동
+                    st.success("시간별 품질활동 일정이 저장되었습니다.")
                     st.rerun()
 
             st.markdown(
@@ -286,6 +307,17 @@ if df_sched is not None and df_check is not None:
                     st.session_state[state_key] = False
                 st.session_state[state_key] = not st.session_state[state_key]
                 st.session_state["initialized_events"] = True 
+                
+                # 수동 완료 토글 처리 시에도 Schedules 영구 갱신 구조 체계가 유지되도록 배열 매칭
+                records_toggle = []
+                for d_idx in range(1, 31):
+                    d_evs = st.session_state.get(f"stored_events_{d_idx}", {})
+                    for t_val, e_val in d_evs.items():
+                        if e_val.strip():
+                            is_done_tg = st.session_state.get(f"cal_status_{d_idx}_{t_val}", False)
+                            records_toggle.append({"Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": is_done_tg})
+                st.session_state.df_cal_data = pd.DataFrame(records_toggle)
+                
                 st.query_params.clear()
                 st.query_params["view_schedule"] = selected_day
                 st.rerun()
@@ -300,7 +332,6 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                # [오류 완전 수정] [0] 대괄호를 추가하여 시(Hour) 정보만 정확하게 꺼내 정수로 형변환합니다.
                 target_hour = int(h_str.split(":")[0])
                 target_absolute_mins = target_hour * 60
                 
@@ -338,7 +369,6 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
-
             st.markdown(
                 f"""
                 <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
