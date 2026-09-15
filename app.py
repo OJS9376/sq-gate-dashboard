@@ -143,6 +143,25 @@ if df_sched is not None and df_check is not None:
         today = pd.Timestamp.now().normalize()
         current_year = today.year
         
+        # 1. 쿼리 파라미터에서 선택된 날짜 가져오기 (기본값은 오늘 날짜인 15일)
+        query_params = st.query_params
+        selected_day = 15
+        if "cal_day" in query_params:
+            selected_day = int(query_params["cal_day"])
+            
+        # 시간별 일정 클릭 이벤트 처리 (cal_toggle_hour 파라미터 감지)
+        if "cal_toggle_hour" in query_params:
+            t_hour = query_params["cal_toggle_hour"]
+            state_key = f"cal_status_{selected_day}_{t_hour}"
+            if state_key not in st.session_state:
+                st.session_state[state_key] = False
+            st.session_state[state_key] = not st.session_state[state_key]
+            st.query_params.clear()
+            st.query_params["cal_day"] = selected_day  # 선택한 날짜 유지
+            st.rerun()
+
+        # 2. 미니 달력 출력 (날짜마다 클릭 가능한 링크 생성)
+        # 선택된 날짜는 연두색 테두리로 하이라이트 표시됩니다.
         st.markdown(
             f"""
             <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
@@ -155,29 +174,143 @@ if df_sched is not None and df_check is not None:
                         <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
                     </tr>
                     <tr style="color: #444;">
-                        <td></td><td></td><td style="color:#AAA; padding: 5px;">1</td><td style="color:#AAA; padding: 5px;">2</td><td style="color:#AAA; padding: 5px;">3</td><td style="color:#AAA; padding: 5px;">4</td><td style="color: #1E88E5; padding: 5px;">5</td>
+                        <td></td><td></td>
+                        <td><a href="?cal_day=1" target="_self" style="text-decoration:none; color:#AAA;">1</a></td>
+                        <td><a href="?cal_day=2" target="_self" style="text-decoration:none; color:#AAA;">2</a></td>
+                        <td><a href="?cal_day=3" target="_self" style="text-decoration:none; color:#AAA;">3</a></td>
+                        <td><a href="?cal_day=4" target="_self" style="text-decoration:none; color:#AAA;">4</a></td>
+                        <td><a href="?cal_day=5" target="_self" style="text-decoration:none; color:#1E88E5;">5</a></td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935; padding: 5px;">6</td><td style="padding: 5px;">7</td><td style="padding: 5px;">8</td><td style="padding: 5px;">9</td><td style="padding: 5px;">10</td><td style="padding: 5px;">11</td><td style="color: #1E88E5; padding: 5px;">12</td>
+                        <td><a href="?cal_day=6" target="_self" style="text-decoration:none; color:#E53935;">6</a></td>
+                        <td><a href="?cal_day=7" target="_self" style="text-decoration:none; color:#444;">7</a></td>
+                        <td><a href="?cal_day=8" target="_self" style="text-decoration:none; color:#444;">8</a></td>
+                        <td><a href="?cal_day=9" target="_self" style="text-decoration:none; color:#444;">9</a></td>
+                        <td><a href="?cal_day=10" target="_self" style="text-decoration:none; color:#444;">10</a></td>
+                        <td><a href="?cal_day=11" target="_self" style="text-decoration:none; color:#444;">11</a></td>
+                        <td><a href="?cal_day=12" target="_self" style="text-decoration:none; color:#1E88E5;">12</a></td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935; padding: 5px;">13</td><td style="padding: 5px;">14</td>
-                        <!-- [수정 포인트 2] 원형 지우고 부드러운 직사각형(배경색 채우기) 형태로 변경 -->
-                        <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold; color: #2E7D32; padding: 5px;">15</td>
-                        <td style="padding: 5px;">16</td><td style="padding: 5px;">17</td><td style="padding: 5px;">18</td><td style="color: #1E88E5; padding: 5px;">19</td>
+                        <td><a href="?cal_day=13" target="_self" style="text-decoration:none; color:#E53935;">13</a></td>
+                        <td><a href="?cal_day=14" target="_self" style="text-decoration:none; color:#444;">14</a></td>
+                        <!-- 선택된 날짜 스타일에 테두리 및 배경색 동적 조건 부여 -->
+                        <td style="{'background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;' if selected_day == 15 else ''}">
+                            <a href="?cal_day=15" target="_self" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
+                        </td>
+                        <td style="{'background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;' if selected_day == 16 else ''}">
+                            <a href="?cal_day=16" target="_self" style="text-decoration:none; color:#444;">16</a>
+                        </td>
+                        <td><a href="?cal_day=17" target="_self" style="text-decoration:none; color:#444;">17</a></td>
+                        <td><a href="?cal_day=18" target="_self" style="text-decoration:none; color:#444;">18</a></td>
+                        <td><a href="?cal_day=19" target="_self" style="text-decoration:none; color:#1E88E5;">19</a></td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935; padding: 5px;">20</td><td style="padding: 5px;">21</td><td style="padding: 5px;">22</td><td style="padding: 5px;">23</td><td style="padding: 5px;">24</td><td style="padding: 5px;">25</td><td style="color: #1E88E5; padding: 5px;">26</td>
+                        <td><a href="?cal_day=20" target="_self" style="text-decoration:none; color:#E53935;">20</a></td>
+                        <td><a href="?cal_day=21" target="_self" style="text-decoration:none; color:#444;">21</a></td>
+                        <td><a href="?cal_day=22" target="_self" style="text-decoration:none; color:#444;">22</a></td>
+                        <td><a href="?cal_day=23" target="_self" style="text-decoration:none; color:#444;">23</a></td>
+                        <td><a href="?cal_day=24" target="_self" style="text-decoration:none; color:#444;">24</a></td>
+                        <td><a href="?cal_day=25" target="_self" style="text-decoration:none; color:#444;">25</a></td>
+                        <td><a href="?cal_day=26" target="_self" style="text-decoration:none; color:#1E88E5;">26</a></td>
                     </tr>
                     <tr style="color: #444;">
-                        <td style="color: #E53935; padding: 5px;">27</td><td style="padding: 5px;">28</td><td style="padding: 5px;">29</td><td style="padding: 5px;">30</td><td></td><td></td><td></td>
+                        <td><a href="?cal_day=27" target="_self" style="text-decoration:none; color:#E53935;">27</a></td>
+                        <td><a href="?cal_day=28" target="_self" style="text-decoration:none; color:#444;">28</a></td>
+                        <td><a href="?cal_day=29" target="_self" style="text-decoration:none; color:#444;">29</a></td>
+                        <td><a href="?cal_day=30" target="_self" style="text-decoration:none; color:#444;">30</a></td>
+                        <td></td><td></td><td></td>
                     </tr>
                 </table>
             </div>
             """, 
             unsafe_allow_html=True
         )
-    st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+
+        # 3. [신규 기능] 선택된 날짜의 06:00 ~ 02:00 시간별 일정 타임라인 출력 영역
+        st.markdown(f"##### {selected_day}일 시간별 일정 관리")
+        
+        # 06:00부터 다음 날 02:00까지의 시간 배열 구성
+        hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+        
+        # 현재의 실제 시각 확인 (지나간 시간 판정용)
+        current_hour_now = pd.Timestamp.now().hour
+        
+        # 날짜별 더미 일정 데이터 맵 (구글 스프레드시트 연동 전 테스트용)
+        mock_events = {
+            15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
+            16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
+        }
+        day_events = mock_events.get(selected_day, {})
+
+        # 스크롤이 너무 길어지지 않도록 내부 스크롤 박스로 구현
+        st.markdown(
+            """
+            <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 8px; padding: 5px; background-color: #FFFFFF;">
+            """, 
+            unsafe_allow_html=True
+        )
+
+        for h_str in hours_list:
+            event_text = day_events.get(h_str, "일정 없음")
+            state_key = f"cal_status_{selected_day}_{h_str}"
+            
+            # 기본 세션 상태 생성
+            if state_key not in st.session_state:
+                st.session_state[state_key] = False
+                
+            is_done = st.session_state[state_key]
+            
+            # 시간 숫자를 추출하여 지나간 시간인지 판정 (오늘 기준)
+            h_int = int(h_str.split(":")[0])
+            # 00시, 01시, 02시는 실제 다음 날 새벽이므로 수치 보정
+            check_h = h_int if h_int >= 6 else h_int + 24
+            now_h = current_hour_now if current_hour_now >= 6 else current_hour_now + 24
+            
+            # 스타일 분기 조건문
+            if is_done:
+                # 사용자가 완료 처리를 한 경우 (초록색)
+                bg_c = "#E8F5E9"
+                text_c = "#2E7D32"
+                border_c = "#A5D6A7"
+                status_lbl = "완료"
+            elif selected_day == today.day and check_h < now_h:
+                # 오늘 기준 이미 지나간 시간인 경우 (빨간색)
+                bg_c = "#FFEBEE"
+                text_c = "#D32F2F"
+                border_c = "#EF9A9A"
+                status_lbl = "지남"
+            else:
+                # 아직 오지 않은 일반 시간인 경우 (회색)
+                bg_c = "#F5F5F5"
+                text_c = "#616161"
+                border_c = "#E0E0E0"
+                status_lbl = "대기"
+
+            st.markdown(
+                f"""
+                <a href="?cal_day={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 3px;">
+                    <div style="
+                        display: flex;
+                        justify-content: space-between;
+                        background-color: {bg_c}; 
+                        color: {text_c}; 
+                        border: 1px solid {border_c}; 
+                        border-radius: 4px; 
+                        padding: 4px 8px; 
+                        font-size: 12px;
+                    ">
+                        <span style="font-weight: bold;">[{h_str}] {event_text}</span>
+                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 4px; border-radius:3px;">{status_lbl}</span>
+                    </div>
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
+            
+        st.markdown("</div>", unsafe_allow_html=True)
+
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
     
