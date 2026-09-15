@@ -229,88 +229,97 @@ if df_sched is not None and df_check is not None:
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
         # 3. [신규 기능] 선택된 날짜의 06:00 ~ 02:00 시간별 일정 타임라인 출력 영역
-        st.markdown(f"##### {selected_day}일 시간별 일정 관리")
-        
-        # 06:00부터 다음 날 02:00까지의 시간 배열 구성
-        hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
-        
-        # 현재의 실제 시각 확인 (지나간 시간 판정용)
-        current_hour_now = pd.Timestamp.now().hour
-        
-        # 날짜별 더미 일정 데이터 맵 (구글 스프레드시트 연동 전 테스트용)
-        mock_events = {
-            15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
-            16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
-        }
-        day_events = mock_events.get(selected_day, {})
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
-        # 스크롤이 너무 길어지지 않도록 내부 스크롤 박스로 구현
-        st.markdown(
-            """
-            <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 8px; padding: 5px; background-color: #FFFFFF;">
-            """, 
-            unsafe_allow_html=True
-        )
+        # 3. [수정 반영] 달력을 클릭했을 때만(cal_day 파라미터가 감지될 때만) 화면에 표시
+        if "cal_day" in query_params:
+            st.markdown(f"##### {selected_day}일 시간별 일정 관리")
+            
+            # 06:00부터 다음 날 02:00까지의 시간 배열 구성
+            hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
+            
+            # [시간 계산 보정] 온라인 서버 시간 기준 현재 시각 객체 생성
+            now_dt = pd.Timestamp.now()
+            current_hour_now = now_dt.hour
+            current_min_now = now_dt.minute
+            
+            # 현재 시각을 6시 시작 기준의 절대 분(Minute) 수치로 환산하여 완벽하게 비교합니다.
+            now_absolute_mins = current_hour_now * 60 + current_min_now
+            if current_hour_now < 6:  # 00시, 01시, 02시는 다음 날로 계산하기 위해 24시간을 더함
+                now_absolute_mins += 24 * 60
 
-        for h_str in hours_list:
-            event_text = day_events.get(h_str, "일정 없음")
-            state_key = f"cal_status_{selected_day}_{h_str}"
-            
-            # 기본 세션 상태 생성
-            if state_key not in st.session_state:
-                st.session_state[state_key] = False
-                
-            is_done = st.session_state[state_key]
-            
-            # 시간 숫자를 추출하여 지나간 시간인지 판정 (오늘 기준)
-            h_int = int(h_str.split(":")[0])
-            # 00시, 01시, 02시는 실제 다음 날 새벽이므로 수치 보정
-            check_h = h_int if h_int >= 6 else h_int + 24
-            now_h = current_hour_now if current_hour_now >= 6 else current_hour_now + 24
-            
-            # 스타일 분기 조건문
-            if is_done:
-                # 사용자가 완료 처리를 한 경우 (초록색)
-                bg_c = "#E8F5E9"
-                text_c = "#2E7D32"
-                border_c = "#A5D6A7"
-                status_lbl = "완료"
-            elif selected_day == today.day and check_h < now_h:
-                # 오늘 기준 이미 지나간 시간인 경우 (빨간색)
-                bg_c = "#FFEBEE"
-                text_c = "#D32F2F"
-                border_c = "#EF9A9A"
-                status_lbl = "지남"
-            else:
-                # 아직 오지 않은 일반 시간인 경우 (회색)
-                bg_c = "#F5F5F5"
-                text_c = "#616161"
-                border_c = "#E0E0E0"
-                status_lbl = "대기"
+            # 날짜별 더미 일정 데이터 맵
+            mock_events = {
+                15: {"08:00": "수출TFT 주간점검회의", "09:00": "장거리레이더 양산이관 회의"},
+                16: {"08:00": "TCG 기본셀조립체 후속조치", "14:00": "보건상담"},
+            }
+            day_events = mock_events.get(selected_day, {})
 
             st.markdown(
-                f"""
-                <a href="?cal_day={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 3px;">
-                    <div style="
-                        display: flex;
-                        justify-content: space-between;
-                        background-color: {bg_c}; 
-                        color: {text_c}; 
-                        border: 1px solid {border_c}; 
-                        border-radius: 4px; 
-                        padding: 4px 8px; 
-                        font-size: 12px;
-                    ">
-                        <span style="font-weight: bold;">[{h_str}] {event_text}</span>
-                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 4px; border-radius:3px;">{status_lbl}</span>
-                    </div>
-                </a>
-                """,
+                """
+                <div style="max-height: 250px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 8px; padding: 5px; background-color: #FFFFFF;">
+                """, 
                 unsafe_allow_html=True
             )
-            
-        st.markdown("</div>", unsafe_allow_html=True)
 
+            for h_str in hours_list:
+                event_text = day_events.get(h_str, "일정 없음")
+                state_key = f"cal_status_{selected_day}_{h_str}"
+                
+                if state_key not in st.session_state:
+                    st.session_state[state_key] = False
+                    
+                is_done = st.session_state[state_key]
+                
+                # 리스트의 대상 시간대를 분(Minute) 수치로 환산
+                target_hour = int(h_str.split(":")[0])
+                target_absolute_mins = target_hour * 60
+                if target_hour < 6:
+                    target_absolute_mins += 24 * 60
+                
+                # 스타일 및 상태 분기 조건문 (분 단위까지 철저하게 대조)
+                if is_done:
+                    bg_c = "#E8F5E9"
+                    text_c = "#2E7D32"
+                    border_c = "#A5D6A7"
+                    status_lbl = "완료"
+                elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
+                    # 현재 실제 시간보다 과거인 경우만 빨간색(지남) 처리
+                    bg_c = "#FFEBEE"
+                    text_c = "#D32F2F"
+                    border_c = "#EF9A9A"
+                    status_lbl = "지남"
+                else:
+                    # 아직 오지 않은 미래 시간대는 정상적으로 회색(대기) 처리
+                    bg_c = "#F5F5F5"
+                    text_c = "#616161"
+                    border_c = "#E0E0E0"
+                    status_lbl = "대기"
+
+                st.markdown(
+                    f"""
+                    <a href="?cal_day={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block; margin-bottom: 3px;">
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            background-color: {bg_c}; 
+                            color: {text_c}; 
+                            border: 1px solid {border_c}; 
+                            border-radius: 4px; 
+                            padding: 4px 8px; 
+                            font-size: 12px;
+                        ">
+                            <span style="font-weight: bold;">[{h_str}] {event_text}</span>
+                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.5); padding: 0 4px; border-radius:3px;">{status_lbl}</span>
+                        </div>
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                )
+                
+            st.markdown("</div>", unsafe_allow_html=True)
+#######################################################################
+    
     all_projects_timeline = []
     today = pd.Timestamp.now().normalize()
     
