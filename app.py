@@ -178,15 +178,15 @@ if df_sched is not None and df_check is not None:
         
         if "view_schedule" in query_params:
             # ------------------------------------------------------------------
-            # [새 창 레이아웃] 화면 깜빡임 최소화 및 슬림 디자인이 반영된 일정 전용 창
+            # [새 창 레이아웃] 초슬림 콤팩트 디자인 및 4색 테마 일정 전용 창
             # ------------------------------------------------------------------
             selected_day = int(query_params.get("view_schedule", current_day))
             st.markdown(f"### {selected_day}일 시간별 일정 관리 전용 창")
             
-            # 메인 대시보드로 복귀하는 버튼 (흰색 배경 / 검은색 글자 유지)
+            # 메인 대시보드로 복귀하는 버튼 (흰색 배경 / 검은색 글자 / 테두리 슬림화)
             st.markdown(
                 """
-                <a href="?" target="_self" style="text-decoration:none;">
+                <a href="?" target="_self" style="text-decoration:none; display:block;">
                     <div style="
                         background-color: #FFFFFF; 
                         color: #000000; 
@@ -197,7 +197,7 @@ if df_sched is not None and df_check is not None:
                         font-size: 13px; 
                         font-weight: bold;
                         border: 1px solid #CCCCCC;
-                        box-shadow: 0px 1px 3px rgba(0,0,0,0.1);
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
                     ">
                         메인 대시보드로 돌아가기
                     </div>
@@ -206,6 +206,7 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
+            # 06:00부터 다음 날 02:00까지의 시간 배열 구성
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)] + ["00:00", "01:00", "02:00"]
             
             current_hour_now = now_dt.hour
@@ -220,31 +221,20 @@ if df_sched is not None and df_check is not None:
             }
             day_events = mock_events.get(selected_day, {})
 
-            # [스타일 보정 1] 컴포넌트 간 세로 빈 여백 마진 완벽 제거
-            st.markdown(
-                """
-                <style>
-                div[data-testid="column"]:nth-of-type(2) div.element-container {
-                    margin-top: 0px !important;
-                    margin-bottom: -6px !important;
-                    padding: 0px !important;
-                }
-                /* 일정 관리 버튼의 텍스트 정렬 및 크기 슬림하게 고정 */
-                div[data-testid="column"]:nth-of-type(2) button[key*="btn_"] {
-                    padding: 4px 12px !important;
-                    margin: 0px !important;
-                    width: 100% !important;
-                    border-radius: 5px !important;
-                    font-size: 13px !important;
-                    height: 34px !important; /* 세로 폭을 슬림하게 고정 */
-                    transition: none !important;
-                }
-                </style>
-                """, 
-                unsafe_allow_html=True
-            )
+            # 클릭 이벤트 처리 (주소창 파라미터 갱신을 통해 전통적 방식으로 오차 없이 연동)
+            if "cal_toggle_hour" in query_params:
+                t_hour = query_params["cal_toggle_hour"]
+                state_key = f"cal_status_{selected_day}_{t_hour}"
+                if state_key not in st.session_state:
+                    st.session_state[state_key] = False
+                st.session_state[state_key] = not st.session_state[state_key]
+                st.query_params.clear()
+                st.query_params["view_schedule"] = selected_day
+                st.rerun()
 
+            # 오리지널 순수 HTML 기반 초박형 컴팩트 리스트 출력 루프
             for h_str in hours_list:
+                has_event = h_str in day_events
                 event_text = day_events.get(h_str, "일정 없음")
                 state_key = f"cal_status_{selected_day}_{h_str}"
                 
@@ -258,97 +248,47 @@ if df_sched is not None and df_check is not None:
                 if target_hour < 6:
                     target_absolute_mins += 24 * 60
                 
+                # 요청하신 4가지 색상 스킨 완벽 분기 조건문
                 if is_done:
+                    # 1. 완료 처리 시 (진한 초록 글씨 / 연한 초록 배경)
                     bg_c = "#E8F5E9"; text_c = "#2E7D32"; border_c = "#A5D6A7"; status_lbl = "완료"
                 elif selected_day == now_dt.day and target_absolute_mins < now_absolute_mins:
+                    # 2. 이미 지난 시간일 시 (진한 빨강 글씨 / 연한 빨강 배경)
                     bg_c = "#FFEBEE"; text_c = "#D32F2F"; border_c = "#EF9A9A"; status_lbl = "지남"
                 else:
-                    bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
+                    # 미래 대기 시간 영역 분기
+                    if has_event:
+                        # 3. 대기 상태이면서 일정이 등록되어 있을 시 (진한 노랑 글씨 / 연한 노랑 배경)
+                        bg_c = "#FFFDE7"; text_c = "#F57F17"; border_c = "#FFF59D"; status_lbl = "대기"
+                    else:
+                        # 4. 대기 상태이면서 일정이 없을 시 (진한 회색 글씨 / 연한 회색 배경)
+                        bg_c = "#F5F5F5"; text_c = "#616161"; border_c = "#E0E0E0"; status_lbl = "대기"
 
-                # [스타일 보정 2] data-testid 속성을 통해 덮어씌워진 흰색을 뚫고 초록/빨강/회색 스킨 강제 적용
+                # 뚱뚱한 버튼 껍데기를 다 버리고 마진 4px 패딩 조밀하게 지정된 순수 HTML 박스로 렌더링
                 st.markdown(
                     f"""
-                    <style>
-                    button[data-testid*="stBaseButton"][key="btn_{selected_day}_{h_str}"] {{
-                        background-color: {bg_c} !important;
-                        color: {text_c} !important;
-                        border: 1px solid {border_c} !important;
-                    }}
-                    </style>
+                    <a href="?view_schedule={selected_day}&cal_toggle_hour={h_str}" target="_self" style="text-decoration: none; display: block;">
+                        <div style="
+                            display: flex; 
+                            justify-content: space-between; 
+                            background-color: {bg_c}; 
+                            color: {text_c}; 
+                            border: 1px solid {border_c}; 
+                            border-radius: 6px; 
+                            padding: 6px 12px; 
+                            margin-bottom: 4px; 
+                            font-weight: bold; 
+                            font-size: 14px;
+                            box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                        ">
+                            <span>[{h_str}] {event_text}</span>
+                            <span style="font-size: 11px; background-color: rgba(255,255,255,0.4); padding: 0 5px; border-radius:3px;">{status_lbl}</span>
+                        </div>
+                    </a>
                     """,
                     unsafe_allow_html=True
                 )
 
-                # 클릭 시 주소창 파라미터 갱신 없이 즉각 고속 리런 연동
-                if st.button(f"[{h_str}] {event_text} \u00A0\u00A0\u00A0\u00A0\u00A0\u00A0 [{status_lbl}]", key=f"btn_{selected_day}_{h_str}", use_container_width=True):
-                    st.session_state[state_key] = not st.session_state[state_key]
-                    st.rerun()
-
-        else:
-            # ------------------------------------------------------------------
-            # [기본 메인 화면] 평소 메인 화면 진입 시 노출되는 깔끔한 미니 달력 스킨
-            # ------------------------------------------------------------------
-            st.markdown(
-                f"""
-                <div style="background-color: #F8F9FA; padding: 15px; border-radius: 15px; 
-                            box-shadow: 0px 4px 10px rgba(0,0,0,0.05); text-align: center; border: 1px solid #E0E0E0;">
-                    <div style="font-weight: bold; color: #666; margin-bottom: 10px; font-size: 16px;">
-                        &lt;&lt; &lt; SEP, {current_year} &gt; &gt;&gt;
-                    </div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <tr style="color: #666; font-weight: bold;">
-                            <th style="color: #E53935; padding: 5px;">Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th style="color: #1E88E5;">Sat</th>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td></td><td></td>
-                            <td><a href="?view_schedule=1" target="_blank" style="text-decoration:none; color:#AAA;">1</a></td>
-                            <td><a href="?view_schedule=2" target="_blank" style="text-decoration:none; color:#AAA;">2</a></td>
-                            <td><a href="?view_schedule=3" target="_blank" style="text-decoration:none; color:#AAA;">3</a></td>
-                            <td><a href="?view_schedule=4" target="_blank" style="text-decoration:none; color:#AAA;">4</a></td>
-                            <td><a href="?view_schedule=5" target="_blank" style="text-decoration:none; color:#1E88E5;">5</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td><a href="?view_schedule=6" target="_blank" style="text-decoration:none; color:#E53935;">6</a></td>
-                            <td><a href="?view_schedule=7" target="_blank" style="text-decoration:none; color:#444;">7</a></td>
-                            <td><a href="?view_schedule=8" target="_blank" style="text-decoration:none; color:#444;">8</a></td>
-                            <td><a href="?view_schedule=9" target="_blank" style="text-decoration:none; color:#444;">9</a></td>
-                            <td><a href="?view_schedule=10" target="_blank" style="text-decoration:none; color:#444;">10</a></td>
-                            <td><a href="?view_schedule=11" target="_blank" style="text-decoration:none; color:#444;">11</a></td>
-                            <td><a href="?view_schedule=12" target="_blank" style="text-decoration:none; color:#1E88E5;">12</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td><a href="?view_schedule=13" target="_blank" style="text-decoration:none; color:#E53935;">13</a></td>
-                            <td><a href="?view_schedule=14" target="_blank" style="text-decoration:none; color:#444;">14</a></td>
-                            <!-- 오늘 날짜인 15일에 강조 연두 사각형 배경색 및 테두리 부여 -->
-                            <td style="background-color: #E8F5E9; border: 1px solid #2E7D32; border-radius: 4px; font-weight: bold;">
-                                <a href="?view_schedule=15" target="_blank" style="text-decoration:none; color:#2E7D32; font-weight:bold;">15</a>
-                            </td>
-                            <td><a href="?view_schedule=16" target="_blank" style="text-decoration:none; color:#444;">16</a></td>
-                            <td><a href="?view_schedule=17" target="_blank" style="text-decoration:none; color:#444;">17</a></td>
-                            <td><a href="?view_schedule=18" target="_blank" style="text-decoration:none; color:#444;">18</a></td>
-                            <td><a href="?view_schedule=19" target="_blank" style="text-decoration:none; color:#1E88E5;">19</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td><a href="?view_schedule=20" target="_blank" style="text-decoration:none; color:#E53935;">20</a></td>
-                            <td><a href="?view_schedule=21" target="_blank" style="text-decoration:none; color:#444;">21</a></td>
-                            <td><a href="?view_schedule=22" target="_blank" style="text-decoration:none; color:#444;">22</a></td>
-                            <td><a href="?view_schedule=23" target="_blank" style="text-decoration:none; color:#444;">23</a></td>
-                            <td><a href="?view_schedule=24" target="_blank" style="text-decoration:none; color:#444;">24</a></td>
-                            <td><a href="?view_schedule=25" target="_blank" style="text-decoration:none; color:#444;">25</a></td>
-                            <td><a href="?view_schedule=26" target="_blank" style="text-decoration:none; color:#1E88E5;">26</a></td>
-                        </tr>
-                        <tr style="color: #444;">
-                            <td><a href="?view_schedule=27" target="_blank" style="text-decoration:none; color:#E53935;">27</a></td>
-                            <td><a href="?view_schedule=28" target="_blank" style="text-decoration:none; color:#444;">28</a></td>
-                            <td><a href="?view_schedule=29" target="_blank" style="text-decoration:none; color:#444;">29</a></td>
-                            <td><a href="?view_schedule=30" target="_blank" style="text-decoration:none; color:#444;">30</a></td>
-                            <td></td><td></td><td></td>
-                        </tr>
-                    </table>
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
 
     st.markdown("---")
     # ------------------------------------------------------------------
