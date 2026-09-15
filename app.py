@@ -110,7 +110,64 @@ if df_sched is not None and df_check is not None:
                 st.rerun()
 
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 10px;'>월간 출장 및 중요 품질 일정</h4>", unsafe_allow_html=True)
 
+        monthly_highlights = []
+        for day_idx in range(1, 31):
+            day_events = st.session_state.get(f"stored_events_{day_idx}", {})
+            for h_str, event_text in day_events.items():
+                if "출장" in event_text or "중요" in event_text or "회의" in event_text:
+                    monthly_highlights.append({
+                        "날짜": f"9월 {day_idx}일",
+                        "시간": h_str,
+                        "내용": event_text
+                    })
+
+        if monthly_highlights:
+            for item in monthly_highlights:
+                bg_highlight = "#FFFDE7" if "출장" in item["내용"] else "#F5F5F5"
+                text_highlight = "#F57F17" if "출장" in item["내용"] else "#616161"
+                border_highlight = "#FFF59D" if "출장" in item["내용"] else "#E0E0E0"
+                
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color: {bg_highlight}; 
+                        color: {text_highlight}; 
+                        border: 1px solid {border_highlight}; 
+                        border-radius: 6px; 
+                        padding: 8px 12px; 
+                        margin-bottom: 4px; 
+                        font-size: 13px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        box-shadow: 0px 1px 2px rgba(0,0,0,0.05);
+                    ">
+                        <span style="font-weight: bold;">[{item["날짜"]} {item["시간"]}] {item["내용"]}</span>
+                        <span style="font-size: 11px; background-color: rgba(255,255,255,0.6); padding: 2px 6px; border-radius: 4px; font-weight: normal;">품질활동</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.markdown(
+                """
+                <div style="
+                    background-color: #F8F9FA; 
+                    color: #9E9E9E; 
+                    border: 1px solid #E0E0E0; 
+                    border-radius: 6px; 
+                    padding: 20px; 
+                    text-align: center; 
+                    font-size: 13px;
+                ">
+                    등록된 월간 출장 또는 중요 품질 일정이 없습니다.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
         for idx in range(5):
             current_note = st.session_state.todo_notes[idx]
             if not current_note.strip():
