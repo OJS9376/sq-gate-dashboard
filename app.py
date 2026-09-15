@@ -47,7 +47,25 @@ if df_sched is not None and df_check is not None:
     # ------------------------------------------------------------------
     # 전 프로젝트 통합 달력형 타임라인 보기
     # ------------------------------------------------------------------
-    col_todo, col_cal = st.columns([1.8, 1.2])
+        col_todo, col_cal = st.columns([1.8, 1.2])
+
+    # [핵심 수정] 좌측 TO DO LIST와 우측 달력의 시작 높이를 상단(윗선)으로 강제 정렬하는 CSS
+    st.markdown(
+        """
+        <style>
+        /* 좌우 컬럼을 감싸는 컨테이너를 상단 정렬로 고정 */
+        div[data-testid="stHorizontalBlock"] {
+            align-items: flex-start !important;
+        }
+        /* 우측 달력 박스가 위에 딱 붙도록 상단 여백 제거 */
+        div[data-testid="column"]:nth-of-type(2) {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
     with col_todo:
         st.markdown("<h4 style='color: #4A3AFF; margin-bottom: 5px;'>TO DO LIST</h4>", unsafe_allow_html=True)
@@ -56,14 +74,13 @@ if df_sched is not None and df_check is not None:
         if "todo_notes" not in st.session_state:
             st.session_state.todo_notes = ["점심먹기", "저녁먹기", "퇴근하기", "책읽기", "글쓰기"]
         if "todo_status" not in st.session_state:
-            st.session_state.todo_status = [True, False, False, False, False] # 예시 이미지와 동일하게 1번만 완료 세팅
+            st.session_state.todo_status = [True, False, False, False, False]
 
         # 클릭 이벤트 처리 (쿼리 파라미터 방식을 활용해 순수 HTML 버튼 클릭 감지)
         query_params = st.query_params
         if "toggle_idx" in query_params:
             clicked_idx = int(query_params["toggle_idx"])
             st.session_state.todo_status[clicked_idx] = not st.session_state.todo_status[clicked_idx]
-            # 재실행 시 쿼리 파라미터 초기화하여 무한 루프 방지
             st.query_params.clear()
             st.rerun()
 
@@ -84,7 +101,6 @@ if df_sched is not None and df_check is not None:
                 st.success("메모가 대시보드에 반영되었습니다.")
                 st.rerun()
 
-        # 팝오버와 리스트 사이의 간격 최소화
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
 
         # 3. HTML/CSS 기반 초박형 컴팩트 리스트 출력
@@ -95,13 +111,11 @@ if df_sched is not None and df_check is not None:
                 
             is_done = st.session_state.todo_status[idx]
             
-            # 진행 여부에 따른 색상 및 문구 명확한 정의
             status_text = "진행완료" if is_done else "미진행"
-            status_color = "#2E7D32" if is_done else "#D32F2F"  # 진한 초록 / 진한 빨강
-            bg_color = "#E8F5E9" if is_done else "#FFEBEE"      # 연한 초록 / 연한 빨강
-            border_color = "#A5D6A7" if is_done else "#EF9A9A"  # 테두리 색상
+            status_color = "#2E7D32" if is_done else "#D32F2F"
+            bg_color = "#E8F5E9" if is_done else "#FFEBEE"
+            border_color = "#A5D6A7" if is_done else "#EF9A9A"
 
-            # Streamlit 버튼의 강제 스타일을 우회하고 세로 간격을 줄이기 위해 a 태그 형태의 커스텀 버튼 주입
             st.markdown(
                 f"""
                 <a href="?toggle_idx={idx}" target="_self" style="text-decoration: none; display: block;">
@@ -124,7 +138,6 @@ if df_sched is not None and df_check is not None:
                 unsafe_allow_html=True
             )
 
-        # 하단 달력 영역과의 최소 격리 여백
         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
     with col_cal:
