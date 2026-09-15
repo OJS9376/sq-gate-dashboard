@@ -9,7 +9,7 @@ st.title("sQ-Gate 통합 일정 및 품질활동 관리 시스템")
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 SHEET_ID = "1KSlG8TUgbB-yIuLksuLnjjxFZBvEfhomx-ynTkxncIc"
-URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
+URL_BASE = f"https://google.com{SHEET_ID}/export?format=xlsx"
 
 @st.cache_data(ttl=5)
 def load_data():
@@ -19,12 +19,10 @@ def load_data():
             excel_file = io.BytesIO(response.content)
             df_sched = pd.read_excel(excel_file, sheet_name="Project_Schedule", engine='openpyxl')
             df_check = pd.read_excel(excel_file, sheet_name="Checklist", engine='openpyxl')
-            
             try:
                 df_cal_saved = pd.read_excel(excel_file, sheet_name="Schedules", engine='openpyxl')
             except:
                 df_cal_saved = pd.DataFrame(columns=["Year", "Month", "Day", "Time", "Event", "Is_Done"])
-                
             return df_sched, df_check, df_cal_saved
         else:
             st.error(f"구글 서버 응답 실패 (코드: {response.status_code})")
@@ -47,9 +45,8 @@ else:
 if df_sched is not None and df_check is not None:
     df_sched.columns = df_sched.columns.str.strip()
     df_check.columns = df_check.columns.str.strip()
-    if df_cal_saved_data := st.session_state.get("df_cal_data", df_cal_saved) is not None:
-        if not df_cal_saved.empty:
-            df_cal_saved.columns = df_cal_saved.columns.str.strip()
+    if df_cal_saved is not None and not df_cal_saved.empty:
+        df_cal_saved.columns = df_cal_saved.columns.str.strip()
     
     df_check['Project'] = df_check['Project'].ffill()
     df_check['Gate'] = df_check['Gate'].ffill()
@@ -399,7 +396,7 @@ if df_sched is not None and df_check is not None:
                 df_tg_save = pd.DataFrame(records_toggle)
                 st.session_state.df_cal_data = df_tg_save
                 
-                API_URL = "https://google.com"
+                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
                 try:
                     requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
                 except:
