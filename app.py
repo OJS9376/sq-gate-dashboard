@@ -189,6 +189,19 @@ if df_sched is not None and df_check is not None:
                 margin=dict(l=10, r=10, t=40, b=10),
                 showlegend=True   # PC는 범례 표시
             )
+            
+        # -----------------------------------------------------------
+        # [새로운 기능] 확대 기능 차단 및 마우스 드래그 시 좌우 이동(Pan) 설정
+        # -----------------------------------------------------------
+        fig_all.update_layout(
+            dragmode="pan",  # 마우스 드래그 기본 동작을 확대(zoom)에서 이동(pan)으로 변경
+            xaxis=dict(
+                fixedrange=False  # X축(날짜축)은 드래그로 이동이 가능하게 허용
+            ),
+            yaxis=dict(
+                fixedrange=True   # Y축(프로젝트명)은 위아래로 움직이거나 확대되지 않도록 고정
+            )
+        )
         
         st.plotly_chart(fig_all, use_container_width=True, config={'displayModeBar': False})
     else:
