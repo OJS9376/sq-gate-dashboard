@@ -261,12 +261,11 @@ if df_sched is not None and df_check is not None:
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
-                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/execv"
-                    if "AKfycbw6U" in API_URL:
-                        try:
-                            requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
-                        except:
-                            pass
+                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                    try:
+                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
+                    except:
+                        pass
                         
                     st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
                     st.rerun()
@@ -284,11 +283,10 @@ if df_sched is not None and df_check is not None:
                 st.session_state.df_cal_data = df_main_save
                 
                 API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
-                if "AKfycbw6U" in API_URL:
-                    try:
-                        requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
+                try:
+                    requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
+                except:
+                    pass
                 
                 if "view_schedule" in st.query_params:
                     del st.query_params["view_schedule"]
@@ -326,11 +324,10 @@ if df_sched is not None and df_check is not None:
                 st.session_state.df_cal_data = df_tg_save
                 
                 API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
-                if "AKfycbw6U" in API_URL:
-                    try:
-                        requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
+                try:
+                    requests.post(API_URL, json=df_tg_save.to_dict(orient="records"), timeout=5)
+                except:
+                    pass
                     
                 if "cal_toggle_hour" in st.query_params:
                     del st.query_params["cal_toggle_hour"]
@@ -346,7 +343,7 @@ if df_sched is not None and df_check is not None:
                     
                 is_done = st.session_state[state_key]
                 
-                target_hour = int(h_str.split(":")[0])
+                target_hour = int(h_str.split(":"))
                 target_absolute_mins = target_hour * 60
                 
                 if is_done:
@@ -383,6 +380,7 @@ if df_sched is not None and df_check is not None:
                     unsafe_allow_html=True
                 )
         else:
+
 
             st.markdown(
                 f"""
