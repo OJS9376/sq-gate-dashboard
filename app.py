@@ -264,9 +264,15 @@ if df_sched is not None and df_check is not None:
                             d_evs = st.session_state.get(loop_key, {})
                             for t_val, e_val in d_evs.items():
                                 if e_val.strip():
-                                    is_done_btn = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
-                                   records.append({"Year": int(st.session_state.cal_year),"Month": int(m_idx),"Day": int(d_idx),"Time": str(t_val),"Event": str(e_val),"Is_Done": str(is_done_btn)})
-                    
+                                           is_done_btn = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+        records.append({
+            "Year": int(st.session_state.cal_year),
+            "Month": int(m_idx),
+            "Day": int(d_idx),
+            "Time": str(t_val),
+            "Event": str(e_val),
+            "Is_Done": str(is_done_btn)
+        })
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
                     
@@ -286,9 +292,16 @@ if df_sched is not None and df_check is not None:
                         d_evs = st.session_state.get(loop_key, {})
                         for t_val, e_val in d_evs.items():
                             if e_val.strip():
-                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
-                                records_main.append({"Year": st.session_state.cal_year, "Month": m_idx, "Day": d_idx, "Time": t_val, "Event": e_val, "Is_Done": str(is_done_main)})
-                
+                                        is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+        records_main.append({
+            "Year": int(st.session_state.cal_year),
+            "Month": int(m_idx),
+            "Day": int(d_idx),
+            "Time": str(t_val),
+            "Event": str(e_val),
+            "Is_Done": str(is_done_main)
+        })
+
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
