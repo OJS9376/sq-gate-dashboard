@@ -279,9 +279,9 @@ if df_sched is not None and df_check is not None:
                     API_URL = "https://google.com"
                     try:
                         requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
-                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
+                        st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
+                    except Exception as e:
+                        st.error(f"구글 전송 실패: {e}")
                     st.rerun()
 
             if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
@@ -301,69 +301,11 @@ if df_sched is not None and df_check is not None:
                                     "Event": str(e_val),
                                     "Is_Done": str(is_done_main)
                                 })
-                    
-                    df_to_save = pd.DataFrame(records)
-                    st.session_state.df_cal_data = df_to_save
-                    
-                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
-                    try:
-                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
-                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
-                    st.rerun()
-
-            if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
-                records_main = []
-                for m_idx in range(1, 13):
-                    for d_idx in range(1, 32):
-                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
-                        d_evs = st.session_state.get(loop_key, {})
-                        for t_val, e_val in d_evs.items():
-                            if e_val.strip():
-                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
-                                records_main.append({
-                                    "Year": int(st.session_state.cal_year),
-                                    "Month": int(m_idx),
-                                    "Day": int(d_idx),
-                                    "Time": str(t_val),
-                                    "Event": str(e_val),
-                                    "Is_Done": str(is_done_main)
-                                })
-
-                    df_to_save = pd.DataFrame(records)
-                    st.session_state.df_cal_data = df_to_save
-                    
-                    API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
-                    try:
-                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
-                    except:
-                        pass
-                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
-                    st.rerun()
-
-            if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
-                records_main = []
-                for m_idx in range(1, 13):
-                    for d_idx in range(1, 32):
-                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
-                        d_evs = st.session_state.get(loop_key, {})
-                        for t_val, e_val in d_evs.items():
-                            if e_val.strip():
-                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
-                                records_main.append({
-                                    "Year": int(st.session_state.cal_year),
-                                    "Month": int(m_idx),
-                                    "Day": int(d_idx),
-                                    "Time": str(t_val),
-                                    "Event": str(e_val),
-                                    "Is_Done": str(is_done_main)
-                                })
-
+                
                 df_main_save = pd.DataFrame(records_main)
                 st.session_state.df_cal_data = df_main_save
                 
-                API_URL = "https://script.google.com/macros/s/AKfycbw_tlpScpdqeBAaVvsE1856f31cpiaKJg4ik38Hm-70s_qvyZJRwDb0k9HVhSaZDfgh/exec"
+                API_URL = "https://google.com"
                 try:
                     requests.post(API_URL, json=df_main_save.to_dict(orient="records"), timeout=5)
                 except:
@@ -374,6 +316,7 @@ if df_sched is not None and df_check is not None:
                 if "cal_toggle_hour" in st.query_params:
                     del st.query_params["cal_toggle_hour"]
                 st.rerun()
+
             hours_list = [f"{str(h).zfill(2)}:00" for h in range(6, 24)]
             current_hour_now = now_dt.hour
             current_min_now = now_dt.minute
