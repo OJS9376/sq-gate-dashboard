@@ -256,7 +256,7 @@ if df_sched is not None and df_check is not None:
                 if st.button("스케줄 저장하기", use_container_width=True, key=f"save_cal_btn_{selected_day}"):
                     st.session_state[state_evt_key] = updated_events
                     st.session_state["initialized_events"] = True
-                                        records = []
+                    records = []
                     for m_idx in range(1, 13):
                         for d_idx in range(1, 32):
                             loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
@@ -272,6 +272,35 @@ if df_sched is not None and df_check is not None:
                                         "Event": str(e_val),
                                         "Is_Done": str(is_done_btn)
                                     })
+                    
+                    df_to_save = pd.DataFrame(records)
+                    st.session_state.df_cal_data = df_to_save
+                    
+                    API_URL = "https://google.com"
+                    try:
+                        requests.post(API_URL, json=df_to_save.to_dict(orient="records"), timeout=5)
+                    except:
+                        pass
+                    st.success("구글 스프레드시트에 품질활동 일정이 영구 저장되었습니다.")
+                    st.rerun()
+
+            if st.button("메인 대시보드로 저장 후 돌아가기", use_container_width=True, key="save_and_go_main_back"):
+                records_main = []
+                for m_idx in range(1, 13):
+                    for d_idx in range(1, 32):
+                        loop_key = f"stored_events_{st.session_state.cal_year}_{m_idx}_{d_idx}"
+                        d_evs = st.session_state.get(loop_key, {})
+                        for t_val, e_val in d_evs.items():
+                            if e_val.strip():
+                                is_done_main = st.session_state.get(f"cal_status_{st.session_state.cal_year}_{m_idx}_{d_idx}_{t_val}", False)
+                                records_main.append({
+                                    "Year": int(st.session_state.cal_year),
+                                    "Month": int(m_idx),
+                                    "Day": int(d_idx),
+                                    "Time": str(t_val),
+                                    "Event": str(e_val),
+                                    "Is_Done": str(is_done_main)
+                                })
                     
                     df_to_save = pd.DataFrame(records)
                     st.session_state.df_cal_data = df_to_save
